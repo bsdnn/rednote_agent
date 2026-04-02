@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+httpx
+sse-starlette
+tenacity
+pydantic-settings
+python-dotenv
+duckduckgo-search
+torch
+sentence-transformers
+faiss-cpu
+numpy
+aiosqlite
+beautifulsoup4

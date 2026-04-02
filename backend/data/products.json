@@ -1,0 +1,212 @@
+[
+  {
+    "id": 1,
+    "name": "极光焕亮精华液",
+    "category": "brightening",
+    "description": "高浓度烟酰胺与维C衍生物配方，有效淡化斑点、提亮肤色、改善暗沉。轻盈水感质地，适合混合/油性及暗沉肌肤，早C晚A最佳拍档。",
+    "key_ingredients": ["niacinamide", "vitamin C derivative", "arbutin"],
+    "suitable_skin_types": ["combination", "oily", "dull", "normal"],
+    "price_tier": "mid-range",
+    "selling_points": ["淡化色斑", "提亮肤色", "控油", "轻盈不油腻"]
+  },
+  {
+    "id": 2,
+    "name": "深海蓝藻补水面膜",
+    "category": "hydrating",
+    "description": "含深海蓝藻萃取物、三重透明质酸及积雪草。深层补水、修护肌肤屏障、舒缓泛红敏感。适合所有肤质，尤其干皮敏感肌，质地清爽不粘腻，熬夜急救必备。",
+    "key_ingredients": ["blue algae extract", "hyaluronic acid", "centella asiatica"],
+    "suitable_skin_types": ["all", "sensitive", "dry"],
+    "price_tier": "mid-range",
+    "selling_points": ["深层补水", "修护屏障", "舒缓敏感", "急救保湿"]
+  },
+  {
+    "id": 3,
+    "name": "冰雪光感维C亮肤霜",
+    "category": "brightening",
+    "description": "3%稳定维C复合精华，结合烟酰胺与熊果苷三重美白。日夜均可使用，质地轻薄不假白，持续使用28天可见肌肤明显提亮。",
+    "key_ingredients": ["vitamin C", "niacinamide", "arbutin", "tranexamic acid"],
+    "suitable_skin_types": ["normal", "combination", "dull"],
+    "price_tier": "mid-range",
+    "selling_points": ["三重美白", "提亮速效", "日夜通用", "不假白"]
+  },
+  {
+    "id": 4,
+    "name": "珍珠焕白睡眠面膜",
+    "category": "brightening",
+    "description": "珍珠粉末与光感因子配方，在睡眠中加速细胞更新，淡化黑色素沉淀。果冻质感，第二天肌肤如婴儿肌，水润透亮，是懒人美白神器。",
+    "key_ingredients": ["pearl powder", "niacinamide", "glycerin", "adenosine"],
+    "suitable_skin_types": ["normal", "dry", "dull"],
+    "price_tier": "mid-range",
+    "selling_points": ["睡眠美白", "淡化色沉", "次日透亮", "懒人必备"]
+  },
+  {
+    "id": 5,
+    "name": "三重玻尿酸精华水",
+    "category": "hydrating",
+    "description": "大中小三种分子量透明质酸，从肌肤表层到深层立体补水。质地如水，层层渗透，喷雾式设计随时随地补水，全天保湿不紧绷。",
+    "key_ingredients": ["hyaluronic acid (3 molecular weights)", "panthenol", "aloe vera"],
+    "suitable_skin_types": ["all", "dry", "dehydrated"],
+    "price_tier": "budget",
+    "selling_points": ["立体补水", "全天保湿", "水感清爽", "随时补水"]
+  },
+  {
+    "id": 6,
+    "name": "神经酰胺屏障修护霜",
+    "category": "hydrating",
+    "description": "模拟皮肤自然脂质结构，含神经酰胺1/3/6复合物，高效修护受损屏障。适合敏感肌、干燥脱皮、外用酸后修护，长效保湿锁水，是问题肌的救星。",
+    "key_ingredients": ["ceramide 1/3/6", "cholesterol", "fatty acids", "niacinamide"],
+    "suitable_skin_types": ["sensitive", "dry", "damaged barrier"],
+    "price_tier": "mid-range",
+    "selling_points": ["修护屏障", "敏感适用", "锁水保湿", "刷酸后修护"]
+  },
+  {
+    "id": 7,
+    "name": "芦荟舒缓凝胶",
+    "category": "hydrating",
+    "description": "99%有机芦荟原液，含积雪草与绿茶萃取，超强舒缓镇静。晒后修复、敏感泛红急救，也可作为水基保湿底妆前打底。",
+    "key_ingredients": ["aloe vera 99%", "centella asiatica", "green tea extract"],
+    "suitable_skin_types": ["sensitive", "oily", "sunburned", "all"],
+    "price_tier": "budget",
+    "selling_points": ["晒后修复", "舒缓镇静", "万能凝胶", "底妆前打底"]
+  },
+  {
+    "id": 8,
+    "name": "视黄醇黄金夜间修护霜",
+    "category": "anti-aging",
+    "description": "0.3%纯视黄醇（A醇）配方，结合角鲨烷与维E，夜间加速细胞更新，淡化细纹皱纹，提升肌肤弹性紧致度。适合25岁以上需要抗初老的肌肤。",
+    "key_ingredients": ["retinol 0.3%", "squalane", "vitamin E", "peptides"],
+    "suitable_skin_types": ["normal", "combination", "mature", "anti-aging"],
+    "price_tier": "mid-range",
+    "selling_points": ["淡化细纹", "紧致提拉", "加速代谢", "抗初老"]
+  },
+  {
+    "id": 9,
+    "name": "胜肽紧致眼霜",
+    "category": "anti-aging",
+    "description": "六胜肽+咖啡因+维K复合配方，同时解决眼周细纹、黑眼圈、眼袋问题。超轻薄眼霜质地，早晚使用，4周可见明显改善。",
+    "key_ingredients": ["hexapeptide-8", "caffeine", "vitamin K", "retinyl palmitate"],
+    "suitable_skin_types": ["all", "mature", "with dark circles", "with puffiness"],
+    "price_tier": "mid-range",
+    "selling_points": ["淡化细纹", "祛黑眼圈", "消除眼袋", "眼周综合改善"]
+  },
+  {
+    "id": 10,
+    "name": "胶原蛋白弹力精华",
+    "category": "anti-aging",
+    "description": "小分子水解胶原蛋白配合弹力蛋白，提升肌肤饱满度与弹弹感。超强保湿同时促进天然胶原合成，预防松弛下垂，是30+熟龄肌的必备精华。",
+    "key_ingredients": ["hydrolyzed collagen", "elastin", "hyaluronic acid", "copper peptide"],
+    "suitable_skin_types": ["mature", "dry", "sagging"],
+    "price_tier": "luxury",
+    "selling_points": ["补充胶原", "增加弹力", "预防松弛", "熟龄肌必备"]
+  },
+  {
+    "id": 11,
+    "name": "UV防御防晒乳SPF50+",
+    "category": "sunscreen",
+    "description": "PA++++物理化学双重防晒，轻薄无感肤感，不假白不粘腻，防水防汗，适合日常出行。含抗氧化因子，防晒同时抵御蓝光与自由基伤害。",
+    "key_ingredients": ["zinc oxide", "octinoxate", "vitamin C", "niacinamide"],
+    "suitable_skin_types": ["all", "oily", "combination"],
+    "price_tier": "mid-range",
+    "selling_points": ["SPF50+ PA++++", "不假白", "防水防汗", "抗氧化"]
+  },
+  {
+    "id": 12,
+    "name": "矿物有色防晒棒",
+    "category": "sunscreen",
+    "description": "纯物理矿物防晒，固体棒状设计超便携，随时补涂零负担。三色可选适配不同肤色，细腻粉感上脸有遮瑕效果，敏感肌安心用。",
+    "key_ingredients": ["zinc oxide 25%", "iron oxides", "shea butter"],
+    "suitable_skin_types": ["sensitive", "all"],
+    "price_tier": "mid-range",
+    "selling_points": ["纯物理防晒", "便携补涂", "有色遮瑕", "敏感适用"]
+  },
+  {
+    "id": 13,
+    "name": "氨基酸温和洁面乳",
+    "category": "cleanser",
+    "description": "月桂酰谷氨酸钠为主要表活，弱酸性配方，洁净同时不破坏皮肤酸膜。细腻泡沫温和清洁，洗后不紧绷不假滑，适合干皮、敏感肌及孕妇使用。",
+    "key_ingredients": ["sodium lauroyl glutamate", "glycerin", "panthenol", "allantoin"],
+    "suitable_skin_types": ["dry", "sensitive", "all"],
+    "price_tier": "budget",
+    "selling_points": ["温和低刺激", "弱酸性", "洗后不紧绷", "孕妇可用"]
+  },
+  {
+    "id": 14,
+    "name": "卸妆米糠温和卸妆水",
+    "category": "cleanser",
+    "description": "含米糠油与角鲨烷，无需洗脸即可卸除彩妆。不油腻不残留，清爽无负担，棉片擦拭后肌肤保持水润感，卸妆同时补水保湿。",
+    "key_ingredients": ["rice bran oil", "squalane", "micellar water", "panthenol"],
+    "suitable_skin_types": ["sensitive", "all"],
+    "price_tier": "budget",
+    "selling_points": ["免洗卸妆", "温和不残留", "卸妆补水两用", "敏感肌可用"]
+  },
+  {
+    "id": 15,
+    "name": "酵母菌精华发酵水",
+    "category": "toner",
+    "description": "酵母菌发酵精华液，含半乳糖酵母样菌发酵产物。湿敷可作精华面膜，第二天肌肤明亮柔嫩，促进后续护肤品吸收，是平价抗老提亮神水。",
+    "key_ingredients": ["bifida ferment lysate", "niacinamide", "glycerin", "adenosine"],
+    "suitable_skin_types": ["all", "dull", "sensitive"],
+    "price_tier": "budget",
+    "selling_points": ["发酵提亮", "促进吸收", "湿敷精华", "平价抗老"]
+  },
+  {
+    "id": 16,
+    "name": "积雪草舒缓修护水",
+    "category": "toner",
+    "description": "高浓度积雪草苷与马齿苋萃取，专为敏感泛红、刷酸受损、换季干燥肌肤设计。使用后即感清凉镇静，是红血丝肌肤的温柔修护伴侣。",
+    "key_ingredients": ["centella asiatica extract", "madecassoside", "asiaticoside", "portulaca extract"],
+    "suitable_skin_types": ["sensitive", "rosacea-prone", "post-acid"],
+    "price_tier": "mid-range",
+    "selling_points": ["舒缓泛红", "修护敏感", "刷酸后用", "红血丝改善"]
+  },
+  {
+    "id": 17,
+    "name": "玫瑰蜂蜜丰盈唇膜",
+    "category": "lip",
+    "description": "大马士革玫瑰油与新西兰蜂蜜配方，睡前涂抹一层，早起蜕变丰盈水润嘟嘟唇。含维E及角鲨烷，滋润修护唇纹，不含色素，全年龄段适用。",
+    "key_ingredients": ["damask rose oil", "New Zealand honey", "vitamin E", "squalane"],
+    "suitable_skin_types": ["all", "chapped lips", "dry lips"],
+    "price_tier": "budget",
+    "selling_points": ["丰盈嘟唇", "修护唇纹", "睡眠修复", "无色素添加"]
+  },
+  {
+    "id": 18,
+    "name": "牛油果身体乳",
+    "category": "body",
+    "description": "非洲牛油果脂与椰子油深层滋润全身，72小时持久保湿不返干。特别含有淡化妊娠纹配方，膨胀纹护理同时提升肌肤弹性，孕期产后均可使用。",
+    "key_ingredients": ["shea butter", "coconut oil", "collagen", "vitamin E"],
+    "suitable_skin_types": ["dry", "all", "pregnant"],
+    "price_tier": "budget",
+    "selling_points": ["72小时保湿", "淡化妊娠纹", "孕期可用", "深层滋润"]
+  },
+  {
+    "id": 19,
+    "name": "咖啡因亮白身体磨砂膏",
+    "category": "body",
+    "description": "咖啡颗粒温和去角质，结合维C与甘草精华，磨砂同时美白提亮肌肤。每周使用2-3次，腿部膝盖暗沉、夏日穿衣前的紧急提亮必备。",
+    "key_ingredients": ["coffee grounds", "vitamin C", "licorice extract", "sweet almond oil"],
+    "suitable_skin_types": ["normal", "oily", "dull skin body"],
+    "price_tier": "budget",
+    "selling_points": ["去角质", "美白提亮", "改善暗沉", "夏日必备"]
+  },
+  {
+    "id": 20,
+    "name": "角蛋白修复发膜",
+    "category": "hair",
+    "description": "水解角蛋白与氨基酸配方，深入发丝修护，针对烫染受损、毛躁干枯发质。每周使用1-2次，4周发丝顺滑柔亮，持续使用可改善分叉断裂。",
+    "key_ingredients": ["hydrolyzed keratin", "amino acids", "argan oil", "panthenol"],
+    "suitable_skin_types": ["damaged hair", "color-treated", "dry hair"],
+    "price_tier": "mid-range",
+    "selling_points": ["修护受损", "改善毛躁", "发丝顺滑", "烫染必备"]
+  },
+  {
+    "id": 21,
+    "name": "烟酰胺+传明酸双重淡斑精华",
+    "category": "brightening",
+    "description": "5%烟酰胺联合传明酸，双通道阻断黑色素形成，加速已有色斑代谢。与维C搭配使用效果翻倍，特别适合晒斑、痘印反复困扰的肌肤。",
+    "key_ingredients": ["niacinamide 5%", "tranexamic acid", "vitamin C", "ferulic acid"],
+    "suitable_skin_types": ["all", "hyperpigmented", "post-acne"],
+    "price_tier": "mid-range",
+    "selling_points": ["双重淡斑", "阻断黑色素", "淡化痘印", "晒斑克星"]
+  }
+]

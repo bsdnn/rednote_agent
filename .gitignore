@@ -1,0 +1,45 @@
+# Environment variables (keep API keys out of version control)
+.env
+
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE config
+.idea/
+.vscode/
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Distribution / build
+dist/
+build/
+*.egg-info/
+backend/static/
+
+# FAISS / model cache (large binary files)
+*.index
+
+# Node
+frontend/node_modules/
+frontend/.vite/
+
+# Memory
+memory/
+
+# Local development artifacts
+.claude/
+.playwright-mcp/
+CLAUDE.md
+test_request.json
