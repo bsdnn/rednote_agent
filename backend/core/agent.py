@@ -80,20 +80,23 @@ async def _reflection_phase(client, draft: GenerateResponse) -> dict:
     return _parse_json_response(content)
 
 
-async def generate_rednote(request: GenerateRequest) -> AsyncIterator[dict]:
+async def generate_rednote(
+    request: GenerateRequest, *, enable_planning: bool = True
+) -> AsyncIterator[dict]:
     client = get_client()
 
-    # Phase 1: Planning
-    yield {"event": "agent_thinking", "data": {"step": "制定任务计划中...", "iteration": 0}}
+    # Phase 1: Planning (skippable for A/B experiment)
     plan: dict | None = None
-    try:
-        plan = await _planning_phase(
-            client, request.query, str(request.tone.value), request.persona, request.user_id
-        )
-        yield {"event": "agent_plan", "data": plan}
-        logger.info("Plan created: %s", plan.get("goal"))
-    except Exception as e:
-        logger.warning("Planning phase failed: %s — continuing without plan", e)
+    if enable_planning:
+        yield {"event": "agent_thinking", "data": {"step": "制定任务计划中...", "iteration": 0}}
+        try:
+            plan = await _planning_phase(
+                client, request.query, str(request.tone.value), request.persona, request.user_id
+            )
+            yield {"event": "agent_plan", "data": plan}
+            logger.info("Plan created: %s", plan.get("goal"))
+        except Exception as e:
+            logger.warning("Planning phase failed: %s — continuing without plan", e)
 
     # Build initial user message, injecting plan + user_id hint
     user_content = build_user_message(request.query, request.tone, request.persona)
