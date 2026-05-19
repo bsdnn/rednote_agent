@@ -1,25 +1,26 @@
+"""Search tools backed by Tavily API (replaces DuckDuckGo + BeautifulSoup)."""
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from collections import Counter
 import re
 
-import httpx
-from bs4 import BeautifulSoup
-from ddgs import DDGS
+from tavily import TavilyClient
 
 from ..core.config import settings
 
 _executor = ThreadPoolExecutor(max_workers=2)
-_http_client = httpx.AsyncClient(timeout=10.0, follow_redirects=True)
+
+_client = TavilyClient(api_key=settings.TAVILY_API_KEY)
 
 
 def _sync_search_web(query: str) -> str:
     try:
-        results = DDGS().text(query, max_results=3)
+        response = _client.search(query, max_results=3, search_depth="basic")
+        results = response.get("results", [])
         if not results:
             return "No results found."
         return "\n---\n".join(
-            f"Title: {r.get('title', '')}\nSummary: {r.get('body', '')}"
+            f"Title: {r.get('title', '')}\nContent: {r.get('content', '')}"
             for r in results
         )
     except Exception as e:
@@ -34,7 +35,8 @@ def _sync_get_trending(category: str) -> str:
     all_titles: list[str] = []
     try:
         for q in queries:
-            results = DDGS().text(q, max_results=5)
+            response = _client.search(q, max_results=5, search_depth="basic")
+            results = response.get("results", [])
             if results:
                 all_titles.extend(r.get("title", "") for r in results)
     except Exception:
@@ -43,10 +45,9 @@ def _sync_get_trending(category: str) -> str:
     # Extract Chinese keywords (2-6 char segments)
     words: list[str] = []
     for title in all_titles:
-        words.extend(re.findall(r"[\u4e00-\u9fff]{2,6}", title))
+        words.extend(re.findall(r"[一-鿿]{2,6}", title))
 
     counter = Counter(words)
-    # Remove single-occurrence generic words
     top = [
         w for w, c in counter.most_common(settings.TRENDING_CANDIDATE_LIMIT) if c > 1
     ][: settings.TRENDING_KEYWORD_LIMIT]
@@ -68,13 +69,14 @@ async def get_trending_topics(category: str = "skincare") -> str:
 
 async def fetch_webpage(url: str) -> str:
     try:
-        response = await _http_client.get(url, headers={"User-Agent": "Mozilla/5.0"})
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
-        for tag in soup(["script", "style", "nav", "footer", "header"]):
-            tag.decompose()
-        text = soup.get_text(separator="\n", strip=True)
-        lines = [ln for ln in text.splitlines() if len(ln) > 20]
-        return "\n".join(lines)[:2000] or "页面内容为空。"
+        response = _client.extract(urls=[url])
+        results = response.get("results", [])
+        if not results:
+            return "页面内容为空。"
+        text = results[0].get("raw_content", "") or ""
+        if not text:
+            return "页面内容为空。"
+        # Truncate to ~2000 chars (matching the old BS4 cutoff)
+        return text[:2000]
     except Exception as e:
         return f"抓取页面失败: {e}"
