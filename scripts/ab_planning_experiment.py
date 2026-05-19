@@ -41,6 +41,7 @@ def _empty_record(query_id: int, query: str, arm: str) -> dict:
         "arm": arm,
         "success": False,
         "error": None,
+        "planning_failed": None,
         "reflection_min_score": None,
         "reflection_virality": None,
         "reflection_tone": None,
@@ -61,6 +62,7 @@ async def _run_one(query_id: int, query: str, arm: str) -> dict:
 
     t0 = time.monotonic()
     try:
+        planning_event_seen = False
         req = GenerateRequest(query=query, tone=Tone.lively, max_iterations=5)
         async for ev in generate_rednote(req, enable_planning=enable_planning):
             if ev["event"] == "agent_thinking":
@@ -76,10 +78,16 @@ async def _run_one(query_id: int, query: str, arm: str) -> dict:
                 record["total_tokens"] = ev["data"]["total_tokens"]
             elif ev["event"] == "error":
                 record["error"] = ev["data"].get("message")
+            elif ev["event"] == "agent_plan":
+                planning_event_seen = True
+        if enable_planning:
+            record["planning_failed"] = not planning_event_seen
+        else:
+            record["planning_failed"] = False  # n/a
+        record["wall_clock_seconds"] = round(time.monotonic() - t0, 3)
     except Exception as e:
         record["error"] = f"{type(e).__name__}: {e}"
-
-    record["wall_clock_seconds"] = round(time.monotonic() - t0, 3)
+        record["wall_clock_seconds"] = round(time.monotonic() - t0, 3)
 
     if final_draft is not None:
         try:
@@ -163,13 +171,17 @@ def _summarize(jsonl_path: Path) -> dict:
 
     by_pair: dict[int, dict[str, dict]] = {}
     for r in records:
-        by_pair.setdefault(r["query_id"], {})[r["arm"]] = r
+        qid, arm = r["query_id"], r["arm"]
+        existing = by_pair.setdefault(qid, {}).get(arm)
+        # Prefer success over failure; for same status, keep the latest
+        if existing is None or (not existing["success"] and r["success"]):
+            by_pair[qid][arm] = r
 
     paired = [(qid, p["A"], p["B"]) for qid, p in by_pair.items()
               if "A" in p and "B" in p and p["A"]["success"] and p["B"]["success"]]
 
     def arm_stat(field: str, arm: str) -> tuple[float | None, float | None]:
-        vals = [r.get(field) for r in records if r["arm"] == arm]
+        vals = [r.get(field) for r in records if r["arm"] == arm and r["success"]]
         vals = [v for v in vals if v is not None]
         if not vals:
             return (None, None)
@@ -212,7 +224,7 @@ def _summarize(jsonl_path: Path) -> dict:
     return summary
 
 
-def _write_report(summary: dict, report_path: Path, n: int) -> None:
+def _write_report(summary: dict, report_path: Path, n: int, records: list[dict]) -> None:
     report_path.parent.mkdir(parents=True, exist_ok=True)
 
     def fmt(v):
@@ -270,6 +282,18 @@ def _write_report(summary: dict, report_path: Path, n: int) -> None:
             lines.append(f"- qid={f['query_id']} arm={f['arm']} — {f.get('error')}")
         lines.append("")
 
+    planning_fails = [r for r in records if r.get("planning_failed")]
+    if planning_fails:
+        lines.append("## Arm A planning 静默失败")
+        lines.append("")
+        lines.append(f"以下 {len(planning_fails)} 次 arm A run 的 planning 阶段静默失败"
+                     "（agent.py 内 try/except 吞掉异常），实际跑的是 no-planning 流程，"
+                     "应从 A vs B 比较中排除：")
+        lines.append("")
+        for f in planning_fails:
+            lines.append(f"- qid={f['query_id']} — {f.get('error', '(无错误信息)')}")
+        lines.append("")
+
     lines.append("## 诚实结论段")
     lines.append("")
     lines.append("**已知局限：**")
@@ -310,6 +334,8 @@ def main() -> None:
                         help="Markdown report file")
     parser.add_argument("--seed", type=int, default=42,
                         help="RNG seed for arm-order shuffling")
+    parser.add_argument("--force", action="store_true",
+                        help="Required to delete an existing --out without --resume")
     args = parser.parse_args()
 
     if args.dry_run:
@@ -322,13 +348,24 @@ def main() -> None:
             sys.exit(1)
 
     if not args.resume and args.out.exists():
+        if not args.force:
+            print(f"refusing to overwrite existing {args.out}: pass --resume to "
+                  f"continue or --force to discard previous results")
+            sys.exit(1)
         args.out.unlink()
 
     print(f"[ab] starting: n={n}, planning A on, B off, paired")
     print(f"[ab] estimated cost: ${n * 0.06:.2f}-${n * 0.10:.2f} USD")
     asyncio.run(_run_experiment(n, args.out, args.seed))
     summary = _summarize(args.out)
-    _write_report(summary, args.report, n)
+    records = []
+    with args.out.open(encoding="utf-8") as f:
+        for line in f:
+            try:
+                records.append(json.loads(line))
+            except json.JSONDecodeError:
+                pass
+    _write_report(summary, args.report, n, records)
 
 
 if __name__ == "__main__":
