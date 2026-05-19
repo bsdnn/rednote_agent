@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     TOOL_TIMEOUT_SECONDS: float = 15.0
     REFLECTION_MIN_SCORE: int = 7
     MAX_REFLECTIONS: int = 2
+    TAVILY_API_KEY: str = ""
     RAG_TOP_K: int = 3
     TRENDING_CANDIDATE_LIMIT: int = 15
     TRENDING_KEYWORD_LIMIT: int = 10

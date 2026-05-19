@@ -5,10 +5,9 @@ sse-starlette
 tenacity
 pydantic-settings
 python-dotenv
-duckduckgo-search
+tavily-python
 torch
 sentence-transformers
 faiss-cpu
 numpy
 aiosqlite
-beautifulsoup4
