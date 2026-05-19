@@ -9,6 +9,8 @@ import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
 
+from ..core.config import settings
+
 logger = logging.getLogger(__name__)
 
 _DATA_PATH = Path(__file__).parent.parent / "data" / "products.json"
@@ -36,7 +38,9 @@ logger.info("RAG service ready.")
 
 
 @lru_cache(maxsize=128)
-def _sync_query(query: str, top_k: int = 3) -> str:
+def _sync_query(query: str, top_k: int | None = None) -> str:
+    if top_k is None:
+        top_k = settings.RAG_TOP_K
     vec = _embedding_model.encode([query])
     distances, indices = _index.search(np.array(vec, dtype="float32"), top_k)
 

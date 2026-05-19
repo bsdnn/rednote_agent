@@ -32,7 +32,7 @@ Output ONLY a valid JSON object:
   "key_focus": "the single most important selling angle for this request"
 }
 
-Choose steps from: recall_user_memory, query_product_database, get_trending_topics, search_web, draft_copy, self_reflect
+Choose steps from: recall_user_history, query_product_database, get_trending_topics, search_web, draft_copy, self_reflect
 Keep steps to 3-5. Be specific to the actual request.
 """
 
@@ -73,7 +73,7 @@ def build_planning_message(query: str, tone: str, persona=None, user_id: str | N
     if persona:
         parts.append(f"用户：{persona.age_group}岁，{persona.skin_type}肤质，{persona.budget}预算")
     if user_id:
-        parts.append(f"用户ID：{user_id}（存在历史记录，recall_user_memory 应作为第一步）")
+        parts.append(f"用户ID：{user_id}（存在历史记录，recall_user_history 应作为第一步）")
     return "\n".join(parts)
 
 

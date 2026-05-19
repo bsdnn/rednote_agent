@@ -4,7 +4,8 @@ from pathlib import Path
 _DB_PATH = Path(__file__).parent.parent / "data" / "memory.db"
 
 
-async def _init_db() -> None:
+async def init_db() -> None:
+    """Create tables if they don't exist. Call once at application startup."""
     async with aiosqlite.connect(_DB_PATH) as db:
         await db.execute("""
             CREATE TABLE IF NOT EXISTS user_memory (
@@ -26,7 +27,6 @@ async def _init_db() -> None:
 
 
 async def recall_user_history(user_id: str) -> str:
-    await _init_db()
     async with aiosqlite.connect(_DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cur = await db.execute(
@@ -59,7 +59,6 @@ async def recall_user_history(user_id: str) -> str:
 async def save_copy_result(
     user_id: str, query: str, title: str, persona_json: str | None = None
 ) -> None:
-    await _init_db()
     async with aiosqlite.connect(_DB_PATH) as db:
         if persona_json:
             await db.execute(

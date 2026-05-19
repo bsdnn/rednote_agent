@@ -5,6 +5,7 @@ import asyncio
 import logging
 from typing import AsyncIterator
 
+from .config import settings
 from .prompts import (
     SYSTEM_PROMPT,
     PLANNING_PROMPT,
@@ -22,7 +23,23 @@ from ..services.memory_service import save_copy_result
 
 logger = logging.getLogger(__name__)
 
-_TOOL_TIMEOUT = 15.0
+_background_tasks: set[asyncio.Task] = set()
+
+
+def _fire_and_forget(coro) -> None:
+    """Schedule a coroutine to run in the background without blocking.
+
+    Keeps a reference to prevent GC and logs any exception that escapes.
+    """
+    task = asyncio.create_task(coro)
+    _background_tasks.add(task)
+
+    def _done(t: asyncio.Task) -> None:
+        _background_tasks.discard(t)
+        if not t.cancelled() and t.exception() is not None:
+            logger.error("Background task failed: %s", t.exception())
+
+    task.add_done_callback(_done)
 
 
 def _parse_json_response(content: str) -> dict:
@@ -137,7 +154,10 @@ async def _agent_loop(
     total_prompt_tokens = 0
     total_completion_tokens = 0
     _json_retried = False
-    _reflected = False
+    _reflection_count = 0
+    best_draft: GenerateResponse | None = None
+    best_score: int = 0
+    _tool_cache: dict[tuple[str, str], str] = {}
 
     for i in range(max_iterations):
         yield {
@@ -170,42 +190,66 @@ async def _agent_loop(
             messages.append(response_message)
             _json_retried = False
 
-            for tool_call in response_message["tool_calls"]:
+            tool_calls = response_message["tool_calls"]
+            tool_names_preview = "、".join(tc["function"]["name"] for tc in tool_calls)
+            yield {
+                "event": "agent_thinking",
+                "data": {"step": f"并行调用工具：{tool_names_preview}"},
+            }
+
+            async def _exec_tool(tool_call: dict) -> tuple[dict, str, str, bool]:
                 func_name = tool_call["function"]["name"]
                 try:
                     func_args = json.loads(tool_call["function"]["arguments"])
                 except json.JSONDecodeError:
                     func_args = {}
 
-                yield {
-                    "event": "agent_thinking",
-                    "data": {"step": f"正在调用工具：{func_name}", "tool": func_name},
-                }
+                args_key = json.dumps(func_args, sort_keys=True, ensure_ascii=False)
+                cache_key = (func_name, args_key)
+                if cache_key in _tool_cache:
+                    return tool_call, func_name, _tool_cache[cache_key], True
 
-                if func_name in AVAILABLE_TOOLS:
-                    try:
-                        tool_result = await asyncio.wait_for(
-                            AVAILABLE_TOOLS[func_name](**func_args), timeout=_TOOL_TIMEOUT
-                        )
-                    except asyncio.TimeoutError:
-                        tool_result = f"工具 '{func_name}' 超时（{_TOOL_TIMEOUT:.0f}秒），跳过。"
-                        logger.warning("Tool '%s' timed out", func_name)
-                        yield {
-                            "event": "agent_thinking",
-                            "data": {"step": f"⚠️ {func_name} 超时，继续生成...", "tool": func_name},
-                        }
-                else:
-                    tool_result = f"工具 '{func_name}' 不存在"
+                if func_name not in AVAILABLE_TOOLS:
+                    return tool_call, func_name, f"工具 '{func_name}' 不存在", False
 
-                logger.info("Tool '%s' result: %d chars", func_name, len(str(tool_result)))
+                try:
+                    result = await asyncio.wait_for(
+                        AVAILABLE_TOOLS[func_name](**func_args),
+                        timeout=settings.TOOL_TIMEOUT_SECONDS,
+                    )
+                    result_str = str(result)
+                    _tool_cache[cache_key] = result_str
+                    return tool_call, func_name, result_str, False
+                except asyncio.TimeoutError:
+                    logger.warning("Tool '%s' timed out", func_name)
+                    return (
+                        tool_call,
+                        func_name,
+                        f"工具 '{func_name}' 超时（{settings.TOOL_TIMEOUT_SECONDS:.0f}秒），跳过。",
+                        False,
+                    )
+
+            results = await asyncio.gather(*[_exec_tool(tc) for tc in tool_calls])
+
+            for tool_call, func_name, result_str, cached in results:
+                logger.info(
+                    "Tool '%s' result: %d chars (cached=%s)",
+                    func_name,
+                    len(result_str),
+                    cached,
+                )
                 yield {
                     "event": "tool_result",
-                    "data": {"tool": func_name, "summary": str(tool_result)[:200]},
+                    "data": {
+                        "tool": func_name,
+                        "summary": result_str[:200],
+                        "cached": cached,
+                    },
                 }
                 messages.append(
                     {
                         "role": "tool",
-                        "content": str(tool_result),
+                        "content": result_str,
                         "tool_call_id": tool_call["id"],
                     }
                 )
@@ -218,12 +262,15 @@ async def _agent_loop(
                 raw = json.loads(content)
                 result = GenerateResponse.model_validate(raw)
 
-                # Phase 3: Reflection (one cycle only)
-                if not _reflected:
-                    _reflected = True
+                # Phase 3: Reflection (up to MAX_REFLECTIONS cycles)
+                if _reflection_count < settings.MAX_REFLECTIONS:
+                    _reflection_count += 1
                     yield {
                         "event": "agent_thinking",
-                        "data": {"step": "自我审核中...", "iteration": i + 1},
+                        "data": {
+                            "step": f"自我审核中（第{_reflection_count}/{settings.MAX_REFLECTIONS}次）...",
+                            "iteration": i + 1,
+                        },
                     }
                     try:
                         critique = await _reflection_phase(client, result)
@@ -235,7 +282,13 @@ async def _agent_loop(
                             critique.get("accuracy_score"),
                             min_score,
                         )
-                        if min_score < 7:
+
+                        # Track best-scored draft so we never regress on rewrite
+                        if best_draft is None or min_score > best_score:
+                            best_draft = result
+                            best_score = min_score
+
+                        if min_score < settings.REFLECTION_MIN_SCORE:
                             issues = "；".join(critique.get("issues", []))
                             suggestions = "；".join(critique.get("suggestions", []))
                             messages.append({"role": "assistant", "content": content})
@@ -255,10 +308,13 @@ async def _agent_loop(
                     except Exception as e:
                         logger.warning("Reflection phase failed: %s — accepting draft as-is", e)
 
+                # Prefer the highest-scored draft we've certified, fall back to current
+                final_result = best_draft if best_draft is not None else result
+
                 # Save to memory in background (fire-and-forget)
                 if user_id:
-                    asyncio.create_task(
-                        save_copy_result(user_id, query, result.title, persona_json)
+                    _fire_and_forget(
+                        save_copy_result(user_id, query, final_result.title, persona_json)
                     )
 
                 total_tokens = total_prompt_tokens + total_completion_tokens
@@ -268,7 +324,7 @@ async def _agent_loop(
                     total_completion_tokens,
                     total_tokens,
                 )
-                yield {"event": "complete", "data": result.model_dump()}
+                yield {"event": "complete", "data": final_result.model_dump()}
                 yield {
                     "event": "token_usage",
                     "data": {
@@ -306,6 +362,33 @@ async def _agent_loop(
                     "data": {"message": f"响应解析失败: {e}", "code": 422},
                 }
                 return
+
+    # Reached max_iterations without a clean return — fall back to best draft if any
+    if best_draft is not None:
+        logger.warning(
+            "Max iterations reached — returning best-scored draft (score=%d)", best_score
+        )
+        if user_id:
+            _fire_and_forget(
+                save_copy_result(user_id, query, best_draft.title, persona_json)
+            )
+        yield {"event": "complete", "data": best_draft.model_dump()}
+        yield {
+            "event": "warning",
+            "data": {
+                "message": f"已达最大迭代次数，返回当前最高分草稿（审核分：{best_score}）",
+            },
+        }
+        total_tokens = total_prompt_tokens + total_completion_tokens
+        yield {
+            "event": "token_usage",
+            "data": {
+                "prompt_tokens": total_prompt_tokens,
+                "completion_tokens": total_completion_tokens,
+                "total_tokens": total_tokens,
+            },
+        }
+        return
 
     yield {
         "event": "error",

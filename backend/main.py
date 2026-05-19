@@ -1,5 +1,6 @@
 import logging
 import uuid
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -14,7 +15,30 @@ from .core.config import settings
 setup_logging()
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Xiaohongshu AI Generator API", version="2.0.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    from .services.rag_service import query_product_database
+    from .services.memory_service import init_db
+    from .services.deepseek_client import get_client, close_client
+
+    await init_db()
+    logger.info("Memory database initialized")
+
+    logger.info("Warming up RAG service...")
+    await query_product_database("预热")
+    logger.info("RAG warmup complete")
+
+    get_client()
+    logger.info("DeepSeek client initialized")
+
+    yield
+
+    await close_client()
+    logger.info("Application shutdown complete")
+
+
+app = FastAPI(title="Xiaohongshu AI Generator API", version="2.0.0", lifespan=lifespan)
 
 
 @app.middleware("http")
@@ -35,26 +59,6 @@ app.add_middleware(
 )
 
 app.include_router(router)
-
-
-@app.on_event("startup")
-async def startup():
-    import asyncio
-    from .services.rag_service import query_product_database
-    logger.info("Warming up RAG service...")
-    await query_product_database("预热")
-    logger.info("RAG warmup complete")
-
-    from .services.deepseek_client import get_client
-    get_client()
-    logger.info("DeepSeek client initialized")
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    from .services.deepseek_client import close_client
-    await close_client()
-    logger.info("Application shutdown complete")
 
 
 _static_dir = Path(__file__).parent / "static"

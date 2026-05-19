@@ -7,6 +7,8 @@ import httpx
 from bs4 import BeautifulSoup
 from ddgs import DDGS
 
+from ..core.config import settings
+
 _executor = ThreadPoolExecutor(max_workers=2)
 _http_client = httpx.AsyncClient(timeout=10.0, follow_redirects=True)
 
@@ -45,7 +47,9 @@ def _sync_get_trending(category: str) -> str:
 
     counter = Counter(words)
     # Remove single-occurrence generic words
-    top = [w for w, c in counter.most_common(15) if c > 1][:10]
+    top = [
+        w for w, c in counter.most_common(settings.TRENDING_CANDIDATE_LIMIT) if c > 1
+    ][: settings.TRENDING_KEYWORD_LIMIT]
 
     if not top:
         return f"{category}相关热门关键词暂时获取失败。"
