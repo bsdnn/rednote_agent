@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "categories": ["补水", "控油", "抗老", "防晒", "美白", "敏感修复"],
+  "queries": [
+    {"id": 1,  "category": "补水",     "query": "干皮秋冬深层补水的精华推荐"},
+    {"id": 2,  "category": "补水",     "query": "学生党平价补水面膜测评"},
+    {"id": 3,  "category": "补水",     "query": "熬夜后急救补水方案"},
+    {"id": 4,  "category": "补水",     "query": "敏感肌可用的玻尿酸产品"},
+    {"id": 5,  "category": "补水",     "query": "空调房通勤族保湿喷雾推荐"},
+
+    {"id": 6,  "category": "控油",     "query": "夏季油皮控油散粉测评"},
+    {"id": 7,  "category": "控油",     "query": "T区出油严重洗面奶推荐"},
+    {"id": 8,  "category": "控油",     "query": "混油皮控油不闷痘的乳液"},
+    {"id": 9,  "category": "控油",     "query": "学生党控油爆款合集"},
+    {"id": 10, "category": "控油",     "query": "运动健身后控油急救"},
+
+    {"id": 11, "category": "抗老",     "query": "25+早C晚A入门方案"},
+    {"id": 12, "category": "抗老",     "query": "眼周细纹抗老精华推荐"},
+    {"id": 13, "category": "抗老",     "query": "胜肽抗老面霜真实测评"},
+    {"id": 14, "category": "抗老",     "query": "30+熟龄肌抗氧化护肤"},
+    {"id": 15, "category": "抗老",     "query": "学生党预防型抗老入门"},
+
+    {"id": 16, "category": "防晒",     "query": "敏感肌物理防晒推荐"},
+    {"id": 17, "category": "防晒",     "query": "通勤党不假白防晒霜"},
+    {"id": 18, "category": "防晒",     "query": "户外旅行高倍防晒"},
+    {"id": 19, "category": "防晒",     "query": "油皮控油防晒一次满足"},
+    {"id": 20, "category": "防晒",     "query": "孕妇可用的温和防晒"},
+
+    {"id": 21, "category": "美白",     "query": "377美白精华使用心得"},
+    {"id": 22, "category": "美白",     "query": "熬夜暗沉急救美白"},
+    {"id": 23, "category": "美白",     "query": "晒后修护美白方案"},
+    {"id": 24, "category": "美白",     "query": "美白淡斑早期入门"},
+    {"id": 25, "category": "美白",     "query": "全身美白乳液推荐"},
+
+    {"id": 26, "category": "敏感修复", "query": "屏障受损泛红修护乳"},
+    {"id": 27, "category": "敏感修复", "query": "刷酸翻车后的舒缓方案"},
+    {"id": 28, "category": "敏感修复", "query": "换季敏感肌急救面膜"},
+    {"id": 29, "category": "敏感修复", "query": "B5修护精华种草"},
+    {"id": 30, "category": "敏感修复", "query": "屏障修复温和洁面"}
+  ]
+}
