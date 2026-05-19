@@ -28,6 +28,7 @@ from backend.core.agent import generate_rednote, _reflection_phase
 from backend.models.request import GenerateRequest, Tone
 from backend.models.response import GenerateResponse
 from backend.services.deepseek_client import get_client
+from backend.services.memory_service import init_db
 
 QUERY_FILE = ROOT / "scripts" / "ab_queries.json"
 DEFAULT_OUT_JSONL = ROOT / "scripts" / "ab_results.jsonl"
@@ -136,6 +137,8 @@ async def _run_experiment(n: int, jsonl_out: Path, seed: int) -> list[dict]:
     queries = json.loads(QUERY_FILE.read_text(encoding="utf-8"))["queries"]
     done = _load_done_pairs(jsonl_out)
     plan = _build_run_plan(queries, n, done, seed)
+
+    await init_db()
 
     print(f"[ab] {len(plan)} runs to execute "
           f"({len(done)} already done, {n * 2 - len(done) - len(plan)} skipped)")
