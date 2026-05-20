@@ -8,13 +8,15 @@ Give it a skincare query (e.g. *"fade acne scars"*) and the agent autonomously c
 
 ## Highlights
 
-- **Multi-tool agent loop** — product DB semantic search, trending topics, web search; per-tool 15s timeout; up to 5 iterations
-- **SSE streaming** — frontend renders thinking steps, tool calls, final result, and token usage live
-- **FAISS RAG** — `text2vec-base-chinese` embeddings over name + description + ingredients + skin types; LRU-cached; top-3 retrieval
-- **User persona conditioning** — skin type / age group / preferences / budget shape the copy toward the target reader
+- **Three-phase agent pipeline** — Planning → Tool-using Agent Loop → Self-Reflection. The planning phase produces a structured task plan that guides the agent; reflection scores every draft and triggers rewrites when quality drops below threshold. Best-scored draft tracking ensures the agent never regresses on rewrite.
+- **Plan-and-Execute with parallel tools** — LLM-issued tool calls (RAG search, Tavily web search, trending topics) execute concurrently via `asyncio.gather`, with per-request result caching to avoid redundant API calls
+- **A/B-verified planning** — a 30-query paired experiment confirmed planning raises success rate from 50% to **80%** while cutting total token cost by **40%** (5753 vs 9678) — the upfront planning call more than pays for itself by keeping the agent on track
+- **FAISS RAG** — `text2vec-base-chinese` embeddings over name + description + ingredients + skin types; top-3 retrieval with per-request tool-result cache
+- **User persona conditioning** — skin type / age group / preferences / budget shape the copy toward the target reader; persistent copy history via SQLite with parameterized queries
+- **Self-reflection with best-draft fallback** — every draft is scored on virality, tone match, and factual accuracy; drafts scoring below threshold trigger targeted rewrites; the highest-scored draft across all reflection rounds wins
 - **Multi-turn refinement** — iterate on a generated post with follow-up instructions ("make it more professional", "add more hashtags")
 - **Structured output** — Pydantic validation with a `model_validator` that auto-normalizes hashtag prefixes
-- **Token usage** — every generation reports prompt / completion / total tokens to the UI
+- **SSE event streaming** — frontend renders planning, thinking steps, parallel tool calls, reflection progress, final result, and token usage live
 - **Production-minded** — request-ID tracing, structured logging, global httpx singleton + startup warmup, in-memory rate limiting, CORS allowlist, tenacity exponential-backoff retries
 
 ---
@@ -28,7 +30,8 @@ Give it a skincare query (e.g. *"fade acne scars"*) and the agent autonomously c
 | HTTP client | httpx (async) + tenacity retries |
 | Streaming | sse-starlette |
 | Vector search | FAISS + sentence-transformers (`text2vec-base-chinese`) |
-| Web search | duckduckgo-search |
+| Web search | Tavily API (replaced DuckDuckGo after diagnosing tool-reliability failures) |
+| Web fetching | Tavily extract API + httpx fallback with 2000-char truncation |
 | Config | pydantic-settings |
 | Frontend | React 19 + TypeScript |
 | Build | Vite 8 |
@@ -58,10 +61,13 @@ cp .env.example .env
 ```env
 DEEPSEEK_API_KEY=sk-xxxxxxxxxxxxxxxx
 DEEPSEEK_API_URL=https://api.deepseek.com/chat/completions
+TAVILY_API_KEY=your-key-here
 ALLOWED_ORIGINS=http://localhost:5173,http://localhost:8000
 RATE_LIMIT_PER_MINUTE=10
 LOG_LEVEL=INFO
 ```
+
+> Tavily provides web search (`search_web`, `get_trending_topics`) and page extraction (`fetch_webpage`). Free tier: 1000 calls/month. Register at [tavily.com](https://tavily.com) (GitHub login, no credit card).
 
 ### 2. Install dependencies
 
@@ -135,6 +141,14 @@ rednote/
 │   │   └── persona.py           # UserPersona
 │   ├── data/
 │   │   └── products.json        # 21 skincare products (with ingredients + skin types)
+│   ├── tests/                   # pytest suite (17 cases, 6 PROVE)
+│   │   ├── conftest.py          # shared fixtures (mock client, temp DB, reset rate limiter)
+│   │   ├── test_agent_flow.py   # main loop: event order, parallelism, cache, JSON retry
+│   │   ├── test_best_draft.py   # reflection fallback + third-draft-swallowed bug
+│   │   ├── test_rag_stability.py       # top-3 determinism + LRU exact-match (not semantic)
+│   │   ├── test_asyncio_gather.py      # exception propagation + wait_for isolation
+│   │   ├── test_memory_security.py     # parameterized SQL + unauthenticated user_id
+│   │   └── test_rate_limit.py          # window count + IP leak + multi-pod bypass
 │   └── static/                  # frontend build output (produced by `npm run build`)
 │
 ├── frontend/
@@ -159,6 +173,11 @@ rednote/
 │           ├── CopyButton.tsx
 │           └── RefinementBar.tsx
 │
+├── scripts/
+│   ├── ab_planning_experiment.py  # A/B experiment runner (paired design, incremental JSONL, auto-report)
+│   ├── ab_queries.json            # 30 hand-written queries across 6 skincare categories
+│   ├── diagnose_failure.py        # single-query diagnostic for debugging agent failures
+│   └── ab_results.jsonl           # full N=30 experiment raw data (60 records)
 ├── .env.example
 ├── docker-compose.yml
 └── Makefile
@@ -247,10 +266,12 @@ Multi-turn refinement on a previous result; also returns SSE.
 
 ## Implementation Notes
 
-- **Fully async** — `deepseek_client.py` uses `httpx.AsyncClient`. CPU-bound calls (FAISS, sentence-transformers) are wrapped in `run_in_executor` so they never block the event loop.
-- **Top-3 RAG** — embedding spans name + description + ingredients + skin types, and returning more candidates broadens the agent's options on each call.
+- **Fully async** — `deepseek_client.py` uses `httpx.AsyncClient`. CPU-bound calls (FAISS, sentence-transformers, Tavily search) are wrapped in `run_in_executor` so they never block the event loop.
+- **Three-phase design** — Planning (structured task plan) → Agent Loop (parallel tool calls, JSON drafts) → Self-Reflection (scored critique, max 2 rewrites). Best-scored draft across all rounds wins.
+- **Top-3 RAG** — embedding spans name + description + ingredients + skin types, returning more candidates broadens the agent's options on each call.
+- **Parallel tool execution** — multiple LLM-issued tool calls run concurrently via `asyncio.gather`; per-request `_tool_cache` prevents duplicate API calls within a single generation.
 - **Pydantic normalization** — `GenerateResponse.model_validator` ensures every hashtag starts with `#`.
-- **Rate limiting** — in-memory sliding window. Fine for dev; swap for Redis in production.
+- **Rate limiting** — in-memory sliding window. Fine for dev; swap for Redis in production. Known limitation: per-pod dicts don't share state in multi-instance deployments.
 - **CORS** — origins come from `ALLOWED_ORIGINS` (comma-separated env var); never `*`.
 - **Request IDs** — middleware assigns an 8-char hex ID per request, injects it into log records and the `X-Request-ID` response header for end-to-end tracing.
 - **Retry policy** — `tenacity` retries on `httpx.TimeoutException` / `httpx.ConnectError` with exponential backoff, max 3 attempts.
@@ -258,13 +279,63 @@ Multi-turn refinement on a previous result; also returns SSE.
 
 ---
 
+## Testing
+
+17-unit pytest suite (all passing in 16s) + a paired A/B experiment pipeline.
+
+```powershell
+# Install test deps
+pip install -r backend/requirements-dev.txt
+
+# Run offline tests (no API calls, ~16s)
+pytest backend/tests -v
+
+# A/B experiment — 30 query × 2 arms paired design, ~$2 DeepSeek + Tavily free tier
+python scripts/ab_planning_experiment.py --n 30 --confirm --force
+
+# Dry-run first (3 queries, ~$0.20)
+python scripts/ab_planning_experiment.py --dry-run
+
+# Diagnose a single failing query
+python scripts/diagnose_failure.py 1
+```
+
+### Test coverage
+
+| Area | File | Cases | Notes |
+|---|---|---|---|
+| Agent main loop | `test_agent_flow.py` | 4 | Event sequence, parallel tools (0.52s measured), per-request cache, JSON retry |
+| Best-draft fallback | `test_best_draft.py` | 3 | Score tracking, third-draft-swallowed bug (PROVE), unscored fallback |
+| RAG + LRU cache | `test_rag_stability.py` | 2 | Top-3 determinism, LRU exact-match semantics (PROVE — not semantic) |
+| asyncio.gather | `test_asyncio_gather.py` | 2 | Default exception propagation (PROVE), wait_for isolation |
+| Memory security | `test_memory_security.py` | 3 | Parameterized SQL (pass), SQL injection neutralized (pass), unauthenticated user_id read (PROVE) |
+| Rate limiting | `test_rate_limit.py` | 3 | Window counting (pass), IP key never evicted (PROVE), multi-pod bypass (PROVE) |
+
+6 PROVE-type tests document known bugs with suggested fixes — see `docs/testing/2026-05-18-results.md` for the full analysis.
+
+### A/B experiment (planning ON vs OFF)
+
+N=30 queries across 6 skincare categories, paired within-subject design.
+
+| Metric | Planning ON (A) | Planning OFF (B) |
+|---|---|---|
+| Success rate | **80%** (24/30) | 50% (15/30) |
+| Avg tokens | **5,753** | 9,678 |
+| Avg iterations | **2.38** | 3.73 |
+| Reflection score | **7.0** ± 0.78 | 6.64 ± 0.84 |
+
+Full report: `docs/testing/2026-05-18-ab-report.md` · Raw data: `scripts/ab_results.jsonl` (60 JSONL records)
+
+---
+
 ## Notes & Caveats
 
 - First backend boot loads `sentence-transformers` (~5–10s). This is normal.
-- DeepSeek total request timeout: 60s. Per-tool call: additional 15s timeout.
+- DeepSeek total request timeout: 60s. Per-tool call: 15s timeout (configurable via `TOOL_TIMEOUT_SECONDS`).
 - Default rate limit is 10 req/min/IP; tune via `RATE_LIMIT_PER_MINUTE`.
 - For production, replace the dev origins in `ALLOWED_ORIGINS` with real domains.
 - Log format: `time [request_id] LEVEL module: message`.
+- The three-phase pipeline (planning → loop → reflection) adds an extra LLM call at the start and up to 2 reflection cycles, but empirically reduces total token consumption by keeping the agent on track (see testing section above).
 
 ---
 
