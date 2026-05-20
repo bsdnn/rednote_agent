@@ -67,7 +67,7 @@ async def get_trending_topics(category: str = "skincare") -> str:
     return await loop.run_in_executor(_executor, _sync_get_trending, category)
 
 
-async def fetch_webpage(url: str) -> str:
+def _sync_fetch_webpage(url: str) -> str:
     try:
         response = _client.extract(urls=[url])
         results = response.get("results", [])
@@ -80,3 +80,8 @@ async def fetch_webpage(url: str) -> str:
         return text[:2000]
     except Exception as e:
         return f"抓取页面失败: {e}"
+
+
+async def fetch_webpage(url: str) -> str:
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(_executor, _sync_fetch_webpage, url)

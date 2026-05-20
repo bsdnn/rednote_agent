@@ -31,7 +31,7 @@ Give it a skincare query (e.g. *"fade acne scars"*) and the agent autonomously c
 | Streaming | sse-starlette |
 | Vector search | FAISS + sentence-transformers (`text2vec-base-chinese`) |
 | Web search | Tavily API (replaced DuckDuckGo after diagnosing tool-reliability failures) |
-| Web fetching | Tavily extract API + httpx fallback with 2000-char truncation |
+| Web fetching | Tavily extract API with 2000-char truncation |
 | Config | pydantic-settings |
 | Frontend | React 19 + TypeScript |
 | Build | Vite 8 |
@@ -133,7 +133,7 @@ rednote/
 │   ├── services/
 │   │   ├── deepseek_client.py   # global httpx singleton + tenacity retry
 │   │   ├── rag_service.py       # FAISS index + LRU cache + top-3 retrieval
-│   │   ├── search_service.py    # DuckDuckGo search + trending-topic scrape
+│   │   ├── search_service.py    # Tavily web search + trending topics + page extraction
 │   │   └── tools_registry.py    # AVAILABLE_TOOLS + TOOLS_DEFINITION
 │   ├── models/
 │   │   ├── request.py           # GenerateRequest · RefineRequest · Tone enum
