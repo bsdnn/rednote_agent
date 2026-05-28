@@ -18,14 +18,14 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from .services.rag_service import query_product_database
+    from .services.rag.service import query_product_database
     from .services.memory_service import init_db
     from .services.deepseek_client import get_client, close_client
 
     await init_db()
     logger.info("Memory database initialized")
 
-    logger.info("Warming up RAG service...")
+    logger.info("Warming up RAG service (version=%s)...", settings.RAG_VERSION)
     await query_product_database("预热")
     logger.info("RAG warmup complete")
 

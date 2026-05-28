@@ -1,4 +1,4 @@
-from .rag_service import query_product_database
+from .rag.service import query_product_database
 from .search_service import search_web, get_trending_topics, fetch_webpage
 from .memory_service import recall_user_history
 
