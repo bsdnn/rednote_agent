@@ -125,11 +125,11 @@ class Chunk:
 
 按类型扩展:
 ```python
-# product
-{"category": str, "skin_types": list[str], "ingredients": list[str],
- "price_tier": "budget"|"mid"|"premium",
- "effects": list[str],          # e.g. ["美白", "保湿"] — 用于 persona.preferences 软加分
- "age_groups": list[str]}       # e.g. ["18-25", "25-30"] — 用于 persona.age_group 软加分
+# product — 字段名严格对齐 backend/data/products.json
+{"category": str, "suitable_skin_types": list[str], "key_ingredients": list[str],
+ "price_tier": "budget"|"mid-range"|"luxury",
+ "effects": list[str],          # NEW,e.g. ["美白", "保湿"] — 用于 persona.preferences 软加分
+ "age_groups": list[str]}       # NEW,e.g. ["18-24", "25-30"] — 用于 persona.age_group 软加分
 # ingredient
 {"effects": list[str], "concerns": list[str], "age_groups": list[str]}
 # post
@@ -246,9 +246,9 @@ PERSONA_TO_FILTER = {
 }
 
 BUDGET_TIER_RULES = {
-    "budget":  {"budget"},
-    "mid":     {"budget", "mid"},
-    "premium": {"budget", "mid", "premium"},
+    "budget":    {"budget"},
+    "mid-range": {"budget", "mid-range"},
+    "luxury":    {"budget", "mid-range", "luxury"},
 }
 ```
 
@@ -261,7 +261,7 @@ def hard_filter(chunks, persona):
     for c in chunks:
         if c.doc_type != "product":      # ingredient / post 永远保留
             out.append(c); continue
-        if persona.skin_type and persona.skin_type not in c.metadata["skin_types"]:
+        if persona.skin_type and persona.skin_type not in c.metadata["suitable_skin_types"]:
             continue
         if persona.budget and c.metadata["price_tier"] not in BUDGET_TIER_RULES[persona.budget]:
             continue
