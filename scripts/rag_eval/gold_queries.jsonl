@@ -1,0 +1,40 @@
+{"qid": "Q001", "query": "适合油皮的控油精华", "category": "direct_need", "persona": {"skin_type": "oily", "budget": "mid-range"}, "relevant_doc_ids": ["prod_1", "prod_3"], "must_not_contain": [], "notes": "baseline recall"}
+{"qid": "Q002", "query": "干皮急救面霜", "category": "direct_need", "persona": {"skin_type": "dry", "budget": "mid-range"}, "relevant_doc_ids": ["prod_2", "prod_6"], "must_not_contain": [], "notes": "barrier-repair cream expected"}
+{"qid": "Q003", "query": "补水产品", "category": "synonym", "persona": null, "relevant_doc_ids": ["prod_2", "prod_5"], "must_not_contain": [], "notes": "paired with Q004"}
+{"qid": "Q004", "query": "保湿产品", "category": "synonym", "persona": null, "relevant_doc_ids": ["prod_2", "prod_5"], "must_not_contain": [], "notes": "should hit same as Q003 via semantic cache"}
+{"qid": "Q005", "query": "含烟酰胺的产品", "category": "ingredient_lookup", "persona": null, "relevant_doc_ids": ["prod_1", "prod_3", "prod_4", "prod_6", "prod_11", "prod_15", "prod_21", "ing_niacinamide"], "must_not_contain": [], "notes": "BM25 advantage"}
+{"qid": "Q006", "query": "含玻尿酸的精华", "category": "ingredient_lookup", "persona": null, "relevant_doc_ids": ["prod_2", "prod_5", "prod_10", "ing_hyaluronic_acid"], "must_not_contain": [], "notes": "BM25 advantage"}
+{"qid": "Q007", "query": "脸总是干干的发紧用啥", "category": "colloquial", "persona": null, "relevant_doc_ids": ["prod_2", "prod_5", "prod_6"], "must_not_contain": [], "notes": "embedding + rerank"}
+{"qid": "Q008", "query": "精华和面膜哪个补水更快", "category": "cross_category", "persona": null, "relevant_doc_ids": ["prod_2", "prod_5"], "must_not_contain": [], "notes": ""}
+{"qid": "Q009", "query": "美白", "category": "persona_strong", "persona": {"skin_type": "sensitive", "budget": "budget"}, "relevant_doc_ids": [], "must_not_contain": ["prod_1"], "notes": "sensitive skin should filter aggressive ingredients"}
+{"qid": "Q010", "query": "适合 25-30 岁的抗老", "category": "persona_strong", "persona": {"age_group": "25-30", "preferences": ["抗老"]}, "relevant_doc_ids": [], "must_not_contain": [], "notes": "soft boost should reorder"}
+{"qid": "Q011", "query": "美白牙膏", "category": "adversarial", "persona": null, "relevant_doc_ids": [], "must_not_contain": ["prod_1", "prod_3"], "notes": "should NOT match skincare brightening"}
+{"qid": "Q012", "query": "汽车防晒膜", "category": "adversarial", "persona": null, "relevant_doc_ids": [], "must_not_contain": [], "notes": "off-domain"}
+{"qid": "Q013", "query": "敏感肌可以用的舒缓产品", "category": "direct_need", "persona": {"skin_type": "sensitive", "budget": "mid-range"}, "relevant_doc_ids": ["prod_7", "prod_16"], "must_not_contain": [], "notes": "centella / aloe expected"}
+{"qid": "Q014", "query": "混油皮夏天用的清爽防晒", "category": "direct_need", "persona": {"skin_type": "combination", "budget": "mid-range"}, "relevant_doc_ids": ["prod_11", "prod_12"], "must_not_contain": [], "notes": "SPF products"}
+{"qid": "Q015", "query": "含视黄醇的抗老产品", "category": "ingredient_lookup", "persona": null, "relevant_doc_ids": ["prod_8", "ing_retinol"], "must_not_contain": [], "notes": "BM25 + ingredient wiki"}
+{"qid": "Q016", "query": "含神经酰胺的修护霜", "category": "ingredient_lookup", "persona": null, "relevant_doc_ids": ["prod_6", "ing_ceramides", "ing_ceramide_np"], "must_not_contain": [], "notes": "ceramide barrier repair"}
+{"qid": "Q017", "query": "含玻色因的产品", "category": "ingredient_lookup", "persona": null, "relevant_doc_ids": ["ing_pro_xylane"], "must_not_contain": [], "notes": "Chinese term for pro-xylane"}
+{"qid": "Q018", "query": "含小白片成分的精华", "category": "ingredient_lookup", "persona": null, "relevant_doc_ids": ["ing_symwhite_377"], "must_not_contain": [], "notes": "colloquial nickname for symwhite 377"}
+{"qid": "Q019", "query": "脸上爆痘怎么救", "category": "colloquial", "persona": null, "relevant_doc_ids": ["ing_salicylic_acid"], "must_not_contain": [], "notes": "acne first aid colloquial"}
+{"qid": "Q020", "query": "黑眼圈怎么淡化", "category": "colloquial", "persona": null, "relevant_doc_ids": ["prod_9"], "must_not_contain": [], "notes": "eye cream / caffeine"}
+{"qid": "Q021", "query": "唇部干裂起皮用啥", "category": "colloquial", "persona": null, "relevant_doc_ids": ["prod_17"], "must_not_contain": [], "notes": "lip mask"}
+{"qid": "Q022", "query": "卸妆水和卸妆油区别", "category": "cross_category", "persona": null, "relevant_doc_ids": ["prod_14"], "must_not_contain": [], "notes": "comparison query"}
+{"qid": "Q023", "query": "洁面和洗面奶哪个温和", "category": "cross_category", "persona": null, "relevant_doc_ids": ["prod_13"], "must_not_contain": [], "notes": "amino acid cleanser expected"}
+{"qid": "Q024", "query": "学生党平价护肤", "category": "persona_strong", "persona": {"skin_type": "combination", "budget": "budget", "age_group": "18-24"}, "relevant_doc_ids": [], "must_not_contain": [], "notes": "budget + young filter"}
+{"qid": "Q025", "query": "熟龄肌抗皱精华推荐", "category": "persona_strong", "persona": {"skin_type": "dry", "age_group": "41+", "preferences": ["抗老", "紧致"]}, "relevant_doc_ids": ["prod_8", "prod_10"], "must_not_contain": [], "notes": "mature skin"}
+{"qid": "Q026", "query": "孕妇可以用的护肤品", "category": "persona_strong", "persona": {"skin_type": "sensitive"}, "relevant_doc_ids": [], "must_not_contain": ["prod_8"], "notes": "should avoid retinol"}
+{"qid": "Q027", "query": "美白牙齿小妙招", "category": "adversarial", "persona": null, "relevant_doc_ids": [], "must_not_contain": ["prod_1", "prod_3", "prod_21"], "notes": "dental, not skincare"}
+{"qid": "Q028", "query": "汽车贴膜推荐", "category": "adversarial", "persona": null, "relevant_doc_ids": [], "must_not_contain": [], "notes": "off-domain"}
+{"qid": "Q029", "query": "护肤品", "category": "synonym", "persona": null, "relevant_doc_ids": [], "must_not_contain": [], "notes": "overly broad — should still return something"}
+{"qid": "Q030", "query": "化妆品", "category": "synonym", "persona": null, "relevant_doc_ids": [], "must_not_contain": [], "notes": "paired with Q029 — cache hit candidate"}
+{"qid": "Q031", "query": "含水杨酸的产品适合痘痘肌吗", "category": "ingredient_lookup", "persona": {"skin_type": "oily"}, "relevant_doc_ids": ["ing_salicylic_acid"], "must_not_contain": [], "notes": "acid for acne"}
+{"qid": "Q032", "query": "含传明酸的淡斑精华", "category": "ingredient_lookup", "persona": null, "relevant_doc_ids": ["prod_3", "prod_21", "ing_tranexamic_acid"], "must_not_contain": [], "notes": "tranexamic acid pigmentation"}
+{"qid": "Q033", "query": "皮肤屏障受损怎么修复", "category": "colloquial", "persona": {"skin_type": "sensitive"}, "relevant_doc_ids": ["prod_6", "ing_ceramides"], "must_not_contain": [], "notes": "barrier repair"}
+{"qid": "Q034", "query": "含咖啡因的眼霜", "category": "ingredient_lookup", "persona": null, "relevant_doc_ids": ["prod_9"], "must_not_contain": [], "notes": "caffeine eye cream"}
+{"qid": "Q035", "query": "含胶原蛋白的紧致精华", "category": "ingredient_lookup", "persona": null, "relevant_doc_ids": ["prod_10", "ing_recombinant_collagen", "ing_collagen_tripeptide"], "must_not_contain": [], "notes": "collagen products"}
+{"qid": "Q036", "query": "氨基酸洁面适合什么肤质", "category": "ingredient_lookup", "persona": null, "relevant_doc_ids": ["prod_13"], "must_not_contain": [], "notes": "amino acid cleanser"}
+{"qid": "Q037", "query": "含积雪草的舒缓水", "category": "ingredient_lookup", "persona": null, "relevant_doc_ids": ["prod_16", "ing_centella_madecassoside", "ing_centella_asiatica"], "must_not_contain": [], "notes": "centella product"}
+{"qid": "Q038", "query": "身体磨砂膏推荐", "category": "direct_need", "persona": null, "relevant_doc_ids": ["prod_19"], "must_not_contain": [], "notes": "body scrub"}
+{"qid": "Q039", "query": "发质毛躁修护", "category": "direct_need", "persona": null, "relevant_doc_ids": ["prod_20"], "must_not_contain": [], "notes": "hair mask"}
+{"qid": "Q040", "query": "便宜大碗的身体乳", "category": "persona_strong", "persona": {"budget": "budget"}, "relevant_doc_ids": ["prod_18"], "must_not_contain": [], "notes": "budget body lotion"}
