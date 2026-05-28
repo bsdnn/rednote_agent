@@ -128,9 +128,90 @@ async def cmd_ingredients(args):
     logger.info("Done: %d ingredients written to %s", len(results), out_path)
 
 
+POST_TOPICS = [
+    # 控油/痘 (3)
+    "油皮控油精华推荐", "祛痘印成分对比", "黑头粉刺真实使用",
+    # 干/敏 (3)
+    "干皮急救面膜", "敏感肌舒缓修护", "屏障受损用什么",
+    # 美白/抗老 (4)
+    "美白淡斑成分横评", "377熊果苷谁更稳", "抗老紧致28天打卡", "祛黄熬夜急救",
+    # 场景/痛点 (5)
+    "毛孔粗大缩毛孔", "熬夜暗沉急救", "换季泛红舒缓", "晒后修复方案", "孕期可用安全清单",
+    # 人群细分 (5)
+    "学生党平价100元内", "通勤快速3步护肤", "30岁后抗老进阶", "敏感肌痘印双困扰", "男生入门护肤",
+]
+
+
+POST_PROMPT = """你是小红书护肤分享博主,粉丝量50w+。生成一条种草/避雷类护肤文案,严格输出 JSON。
+
+post_id: {pid}
+主题: {topic}
+
+写作要求(必须满足):
+1. title (12-18字):带数字/对比/反问,典型小红书标题风格,可带1-2个emoji
+2. content (180-280字):必须包含
+   - 痛点开场(具体场景,如"上班族下午脸出油到爆")
+   - 至少1-2个具体成分(从[烟酰胺,玻尿酸,A醇,维C,377,玻色因,二裂酵母,蓝铜肽,神经酰胺,水杨酸]中选)
+   - 实际产品例(如"修丽可CE精华、SK-II神仙水")
+   - 使用timeline(如"用了21天")或具体细节(浓度/搭配/早晚)
+   - 收尾给具体行动建议
+   口语化、有emoji、惊叹号,但不要全篇情绪化
+3. tone(固定5选):["活泼甜美","专业种草","温柔治愈","幽默搞笑","精英范儿"]
+4. linked_products (1-3个,可空): 真实在售产品中文名,如["修丽可CE精华","SK-II神仙水"]
+
+严格输出 JSON,不要markdown围栏:
+{{"post_id":"{pid}","title":"...","content":"...","tone":"...","linked_products":["..."]}}
+"""
+
+
+async def _gen_one_post(client, pid: int, topic: str) -> dict | None:
+    try:
+        result = await client.chat(messages=[
+            {"role": "user", "content": POST_PROMPT.format(pid=pid, topic=topic)}
+        ])
+        content = result["choices"][0]["message"]["content"]
+        return json.loads(content)
+    except Exception as e:
+        logger.error("post %d failed: %s", pid, e)
+        return None
+
+
 async def cmd_posts(args):
-    # Implemented in Task 13.
-    raise NotImplementedError("cmd_posts is implemented in Task 13")
+    random.seed(42)
+    client = get_client()
+    out_path = DATA_DIR / "posts.json"
+    existing = []
+    done_ids: set[str] = set()
+    if out_path.exists() and not args.force:
+        existing = json.loads(out_path.read_text(encoding="utf-8"))
+        done_ids = {str(r["post_id"]) for r in existing}
+        logger.info("Resume: %d posts already done", len(done_ids))
+    elif out_path.exists() and args.force:
+        out_path.unlink()
+        logger.info("Force flag: deleted existing posts.json")
+
+    n = args.n
+    results = list(existing)
+    sem = asyncio.Semaphore(5)
+    lock = asyncio.Lock()
+
+    async def _one(pid: int):
+        if str(pid) in done_ids:
+            return
+        topic = random.choice(POST_TOPICS)
+        async with sem:
+            rec = await _gen_one_post(client, pid, topic)
+            if rec:
+                async with lock:
+                    results.append(rec)
+                    out_path.write_text(
+                        json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8"
+                    )
+                logger.info("post_%d (%s) %d/%d", pid, topic, len(results), n)
+
+    await asyncio.gather(*[_one(i) for i in range(n)])
+    await close_client()
+    logger.info("Done: %d posts written to %s", len(results), out_path)
 
 
 def main():
