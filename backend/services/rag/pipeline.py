@@ -29,7 +29,7 @@ def _format_hits(hits: list[RetrievalHit]) -> str:
         skin_types = "、".join(meta.get("suitable_skin_types", []))
         selling = "、".join(meta.get("selling_points", []))
         parts.append(
-            f"[匹配{rank}] {h.chunk.text[:80]}\n"
+            f"[匹配{rank}] [{h.chunk.doc_id}] {h.chunk.text[:80]}\n"
             f"类型: {h.chunk.doc_type} | 成分: {ingredients} | 适合: {skin_types} | 卖点: {selling}"
         )
     return "\n\n".join(parts)

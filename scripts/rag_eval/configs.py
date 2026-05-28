@@ -67,7 +67,7 @@ def build_query_fn(spec: ConfigSpec) -> Callable[[str, UserPersona | None], Awai
 
         async def _q(query: str, persona):
             hits = retr.retrieve(query, top_k=3)
-            return "\n".join(h.chunk.text[:120] for h in hits) or "数据库中未找到匹配产品。"
+            return "\n".join(f"[{h.chunk.doc_id}] {h.chunk.text[:120]}" for h in hits) or "数据库中未找到匹配产品。"
         return _q
 
     # C1..C4: re-use RAGv2Pipeline with toggles
@@ -106,7 +106,7 @@ def build_query_fn(spec: ConfigSpec) -> Callable[[str, UserPersona | None], Awai
         if spec.use_persona:
             candidates = apply_soft_boost(candidates, persona, per_match=0.05)
         final = candidates[:3]
-        result = "\n".join(h.chunk.text[:120] for h in final) or "数据库中未找到匹配产品。"
+        result = "\n".join(f"[{h.chunk.doc_id}] {h.chunk.text[:120]}" for h in final) or "数据库中未找到匹配产品。"
         if cache: await cache.set(cache_key, result)
         return result
 
