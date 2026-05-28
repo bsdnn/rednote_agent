@@ -27,34 +27,61 @@ logger = logging.getLogger(__name__)
 DATA_DIR = ROOT / "backend" / "data" / "corpus"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-# 50 canonical skincare ingredient slugs
+# 50 mainstream 小红书 skincare ingredient slugs
 INGREDIENT_SLUGS = [
-    "niacinamide", "vitamin_c", "retinol", "hyaluronic_acid", "salicylic_acid",
-    "glycolic_acid", "lactic_acid", "azelaic_acid", "kojic_acid", "arbutin",
-    "tranexamic_acid", "alpha_arbutin", "ceramides", "peptides", "panthenol",
-    "centella_asiatica", "allantoin", "bisabolol", "squalane", "snail_mucin",
-    "bakuchiol", "alpha_hydroxy_acids", "beta_hydroxy_acids", "polyhydroxy_acids",
-    "glutathione", "resveratrol", "ferulic_acid", "vitamin_e", "coq10",
-    "ectoin", "madecassoside", "tiger_grass", "honeysuckle", "green_tea",
-    "licorice_extract", "mulberry_extract", "pearl_powder", "collagen",
-    "elastin", "amino_acids", "zinc", "copper_peptides", "edelweiss",
-    "rosehip_oil", "jojoba_oil", "argan_oil", "marula_oil", "rosemary",
-    "tea_tree", "lavender_oil",
+    # 经典酸 / 维C / A醇家族
+    "niacinamide", "hyaluronic_acid", "sodium_hyaluronate", "retinol", "retinal",
+    "vitamin_c", "vc_derivative_etvc", "vc_derivative_thd",
+    "salicylic_acid", "glycolic_acid", "mandelic_acid", "lactic_acid",
+    # 美白家族
+    "tranexamic_acid", "arbutin", "alpha_arbutin", "symwhite_377",
+    "glutathione", "ergothioneine", "ellagic_acid",
+    # 抗老 / 肽 / 胶原
+    "pro_xylane", "copper_peptides", "argireline_hexapeptide",
+    "matrixyl_palmitoyl_pentapeptide", "recombinant_collagen", "collagen_tripeptide",
+    "peptide_egf",
+    # 屏障 / 保湿
+    "ceramides", "ceramide_np", "squalane", "polyglutamic_acid", "beta_glucan",
+    # 舒缓 / 抗炎
+    "centella_madecassoside", "centella_asiatica", "bisabolol", "allantoin",
+    "panthenol", "azelaic_acid", "ectoin", "licorice_extract",
+    # 抗氧化 / 经典 vitamin
+    "vitamin_e", "ferulic_acid", "alpha_lipoic_acid", "coq10",
+    # 发酵 / 提取物 — 真热门
+    "galactomyces", "tea_polyphenols", "bird_nest_extract", "sialic_acid",
+    "propolis_extract", "salicin",
+    # 闭塞剂
+    "petrolatum",
 ]
+assert len(INGREDIENT_SLUGS) == 50, f"expected 50, got {len(INGREDIENT_SLUGS)}"
 
 
-PROMPT_TEMPLATE = """生成一条护肤成分百科条目,严格输出 JSON。
+PROMPT_TEMPLATE = """你是小红书护肤博主+成分党。生成一条护肤成分百科,严格输出 JSON。
 
 成分英文 slug: {slug}
 
-要求:
-- 中文名 + 简介(100-150字),口语化但准确
-- effects: 该成分的核心功效列表(中文,3-5个,如 "美白" "保湿" "抗老" "舒缓" "控油" 等)
-- concerns: 使用注意事项列表(中文,1-3条,如 "敏感肌慎用" "孕期禁用" 等;无禁忌则返回空数组)
-- age_groups: 适合年龄段(从 ["18-24", "25-30", "31-40", "41+"] 中选,可多选)
+写作要求(必须满足):
+1. content (180-250字):必须包含
+   - 成分中文名 + 常见别名或 INCI 名
+   - 核心机制(一句话原理,如"抑制酪氨酸酶活性")
+   - 常用浓度范围(如"2-5%")或推荐有效剂量
+   - 使用时机(早C晚A / 仅夜间 / AM&PM 均可)
+   - 1-2 个在售产品例子(如"修丽可 CE 精华、HABA G露、SK-II 神仙水")
+   口语化但有干货,小红书风格但不浮夸
 
-输出格式(严格 JSON,不要任何解释文字,不要 markdown 围栏):
-{{"slug": "{slug}", "name": "中文名", "content": "百科介绍...", "effects": ["..."], "concerns": ["..."], "age_groups": ["..."]}}
+2. effects (3-5个):从下列固定词表中选,可额外自定义最多 1 个
+   ["美白","淡斑","抗老","抗皱","保湿","修护","屏障","抗炎","舒缓","控油","抗痘","紧致","提亮","抗氧化","祛黄"]
+
+3. concerns (2-4条):每条必须具体可执行
+   - 至少一条层叠冲突(如"不可与高浓度VC同时使用")
+   - 至少一条肤质/孕期/光敏具体警告
+   - 浓度起点建议(如"建议从0.025% A醇起步")
+   禁止"敏感肌慎用"这种空话
+
+4. age_groups: 从 ["18-24","25-30","31-40","41+"] 选,**最多 3 个**(避免全选)
+
+严格输出 JSON,不要 markdown 围栏,不要解释:
+{{"slug":"{slug}","name":"中文名","content":"...","effects":["..."],"concerns":["..."],"age_groups":["..."]}}
 """
 
 
