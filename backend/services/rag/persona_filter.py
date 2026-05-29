@@ -2,34 +2,9 @@ import logging
 from backend.models.persona import UserPersona
 from .corpus.schema import Chunk
 from .retrievers.vector import RetrievalHit
+from .persona_rules import BUDGET_TIER_RULES, passes_skin_type, passes_budget
 
 logger = logging.getLogger(__name__)
-
-BUDGET_TIER_RULES: dict[str, set[str]] = {
-    "budget":    {"budget"},
-    "mid-range": {"budget", "mid-range"},
-    "luxury":    {"budget", "mid-range", "luxury"},
-}
-
-
-def _passes_skin_type(chunk: Chunk, skin_type: str | None) -> bool:
-    if not skin_type:
-        return True
-    types = chunk.metadata.get("suitable_skin_types") or []
-    # empty types = unspecified, don't penalize
-    if not types:
-        return True
-    return skin_type in types or "all" in types
-
-
-def _passes_budget(chunk: Chunk, budget: str | None) -> bool:
-    if not budget:
-        return True
-    tier = chunk.metadata.get("price_tier")
-    if not tier:
-        return True
-    allowed = BUDGET_TIER_RULES.get(budget, {tier})
-    return tier in allowed
 
 
 def hard_filter(chunks: list[Chunk], persona: UserPersona | None) -> list[Chunk]:
@@ -45,9 +20,9 @@ def hard_filter(chunks: list[Chunk], persona: UserPersona | None) -> list[Chunk]
         for c in chunks:
             if c.doc_type != "product":
                 out.append(c); continue
-            if not skip_skin_type and not _passes_skin_type(c, persona.skin_type):
+            if not skip_skin_type and not passes_skin_type(c.metadata, persona.skin_type):
                 continue
-            if not _passes_budget(c, persona.budget):
+            if not passes_budget(c.metadata, persona.budget):
                 continue
             out.append(c)
         return out
