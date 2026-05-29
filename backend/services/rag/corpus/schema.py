@@ -27,3 +27,38 @@ class Chunk:
     doc_type: DocType
     text: str
     metadata: dict = field(default_factory=dict)
+
+
+# ----- LlamaIndex metadata-filter helpers (v3) -----
+
+from llama_index.core import Document as LIDocument
+
+# Which metadata fields get prepended to embedding text via LlamaIndex's
+# excluded_embed_metadata_keys mechanism.
+EMBED_KEYS: dict[str, list[str]] = {
+    "product":    ["title", "category"],
+    "ingredient": ["title", "effects"],
+    "post":       ["title"],
+}
+
+# All metadata fields we ever set per doc_type (used to compute the "exclude" set).
+ALL_KEYS: dict[str, list[str]] = {
+    "product":    ["doc_type", "source", "title", "category", "suitable_skin_types",
+                   "key_ingredients", "price_tier", "selling_points",
+                   "effects", "age_groups"],
+    "ingredient": ["doc_type", "source", "title", "effects", "concerns", "age_groups"],
+    "post":       ["doc_type", "source", "title", "linked_products", "tone"],
+}
+
+
+def set_metadata_filters(doc: LIDocument, doc_type: str) -> None:
+    """Configure which metadata keys participate in embedding text vs. LLM context.
+
+    LlamaIndex auto-prepends NON-excluded metadata fields to the embedding text.
+    This fixes the v2 bug where post/ingredient `title` was never embedded.
+    """
+    all_keys = set(ALL_KEYS[doc_type])
+    embed_keys = set(EMBED_KEYS[doc_type])
+    doc.excluded_embed_metadata_keys = sorted(all_keys - embed_keys)
+    # Hide noise from LLM context (source is debug-only)
+    doc.excluded_llm_metadata_keys = ["source"]
