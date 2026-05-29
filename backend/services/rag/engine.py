@@ -90,7 +90,17 @@ def get_engine() -> RetrieverQueryEngine:
     nodes: list[TextNode] = []
     for doc in docs:
         if doc.metadata.get("doc_type") == "post":
-            nodes.extend(splitter.get_nodes_from_documents([doc]))
+            chunks = splitter.get_nodes_from_documents([doc])
+            # Re-id with deterministic "{doc_id}::{idx}" — SentenceSplitter assigns
+            # UUIDs by default, which breaks the downstream doc_id-prefix convention
+            # used by service._format_top and eval's _extract_doc_ids regex.
+            for idx, chunk in enumerate(chunks):
+                chunk.id_ = f"{doc.doc_id}::{idx}"
+                # SentenceSplitter copies metadata but may not copy the
+                # excluded-keys config — set explicitly to keep title-aware embedding.
+                chunk.excluded_embed_metadata_keys = list(doc.excluded_embed_metadata_keys or [])
+                chunk.excluded_llm_metadata_keys = list(doc.excluded_llm_metadata_keys or [])
+            nodes.extend(chunks)
         else:
             n = TextNode(
                 id_=f"{doc.doc_id}::0",
