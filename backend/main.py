@@ -25,9 +25,9 @@ async def lifespan(app: FastAPI):
     await init_db()
     logger.info("Memory database initialized")
 
-    logger.info("Warming up RAG service (version=%s)...", settings.RAG_VERSION)
-    await query_product_database("预热")
-    logger.info("RAG warmup complete")
+    logger.info("Warming up RAG v3 (loads BGE-M3 + bge-reranker-v2-m3, ~2.8GB first time)...")
+    await query_product_database("预热查询")
+    logger.info("RAG v3 warmup complete")
 
     get_client()
     logger.info("DeepSeek client initialized")
