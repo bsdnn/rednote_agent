@@ -11,7 +11,7 @@ Give it a skincare query (e.g. *"fade acne scars"*) and the agent autonomously c
 - **Three-phase agent pipeline** — Planning → Tool-using Agent Loop → Self-Reflection. The planning phase produces a structured task plan that guides the agent; reflection scores every draft and triggers rewrites when quality drops below threshold. Best-scored draft tracking ensures the agent never regresses on rewrite.
 - **Plan-and-Execute with parallel tools** — LLM-issued tool calls (RAG search, Tavily web search, trending topics) execute concurrently via `asyncio.gather`, with per-request result caching to avoid redundant API calls
 - **A/B-verified planning** — a 30-query paired experiment confirmed planning raises success rate from 50% to **80%** while cutting total token cost by **40%** (5753 vs 9678) — the upfront planning call more than pays for itself by keeping the agent on track
-- **FAISS RAG** — `text2vec-base-chinese` embeddings over name + description + ingredients + skin types; top-3 retrieval with per-request tool-result cache
+- **RAG v2 — eval-driven hybrid pipeline** — BM25 (jieba-tokenized) + dense (text2vec-base-chinese) → RRF fusion → cross-encoder rerank (bge-reranker-base) → persona-aware filter & soft boost → semantic cache (cosine threshold, LRU+TTL). Paired ablation across 5 configs (C0..C4) over 40 hand-authored gold queries with auto-generated report; cross-encoder is the biggest ranking lever (+5pp MRR, +0.25 faithfulness) at 50× retrieval latency cost.
 - **User persona conditioning** — skin type / age group / preferences / budget shape the copy toward the target reader; persistent copy history via SQLite with parameterized queries
 - **Self-reflection with best-draft fallback** — every draft is scored on virality, tone match, and factual accuracy; drafts scoring below threshold trigger targeted rewrites; the highest-scored draft across all reflection rounds wins
 - **Multi-turn refinement** — iterate on a generated post with follow-up instructions ("make it more professional", "add more hashtags")
@@ -29,7 +29,7 @@ Give it a skincare query (e.g. *"fade acne scars"*) and the agent autonomously c
 | Backend | FastAPI + uvicorn |
 | HTTP client | httpx (async) + tenacity retries |
 | Streaming | sse-starlette |
-| Vector search | FAISS + sentence-transformers (`text2vec-base-chinese`) |
+| Vector search | FAISS (cosine) + BM25 (rank_bm25 + jieba) + RRF + bge-reranker-base |
 | Web search | Tavily API (replaced DuckDuckGo after diagnosing tool-reliability failures) |
 | Web fetching | Tavily extract API with 2000-char truncation |
 | Config | pydantic-settings |
@@ -132,7 +132,11 @@ rednote/
 │   │   └── prompts.py           # SYSTEM_PROMPT + build_user_message()
 │   ├── services/
 │   │   ├── deepseek_client.py   # global httpx singleton + tenacity retry
-│   │   ├── rag_service.py       # FAISS index + LRU cache + top-3 retrieval
+│   │   ├── rag/                 # RAG v2 — hybrid + rerank + persona + semantic cache
+│   │   │   ├── service.py       # public entrypoint, lazily builds pipeline
+│   │   │   ├── pipeline.py      # RAGv2Pipeline orchestration
+│   │   │   ├── corpus/          # loader + chunker (products + ingredients + posts)
+│   │   │   └── retrievers/      # vector, BM25, RRF, reranker, persona, cache
 │   │   ├── search_service.py    # Tavily web search + trending topics + page extraction
 │   │   └── tools_registry.py    # AVAILABLE_TOOLS + TOOLS_DEFINITION
 │   ├── models/
@@ -281,7 +285,7 @@ Multi-turn refinement on a previous result; also returns SSE.
 
 ## Testing
 
-17-unit pytest suite (all passing in 16s) + a paired A/B experiment pipeline.
+62-unit pytest suite (all passing in ~13s) + a paired A/B experiment pipeline + a RAG v2 ablation harness.
 
 ```powershell
 # Install test deps
@@ -306,7 +310,7 @@ python scripts/diagnose_failure.py 1
 |---|---|---|---|
 | Agent main loop | `test_agent_flow.py` | 4 | Event sequence, parallel tools (0.52s measured), per-request cache, JSON retry |
 | Best-draft fallback | `test_best_draft.py` | 3 | Score tracking, third-draft-swallowed bug (PROVE), unscored fallback |
-| RAG + LRU cache | `test_rag_stability.py` | 2 | Top-3 determinism, LRU exact-match semantics (PROVE — not semantic) |
+| RAG v2 pipeline | `test_rag_v2_pipeline.py` + retriever/cache/persona/chunker/loader tests | 45+ | Hybrid retrieval, RRF, cross-encoder, persona filter, semantic cache (PROVE-to-PASS flip), corpus schema |
 | asyncio.gather | `test_asyncio_gather.py` | 2 | Default exception propagation (PROVE), wait_for isolation |
 | Memory security | `test_memory_security.py` | 3 | Parameterized SQL (pass), SQL injection neutralized (pass), unauthenticated user_id read (PROVE) |
 | Rate limiting | `test_rate_limit.py` | 3 | Window counting (pass), IP key never evicted (PROVE), multi-pod bypass (PROVE) |
@@ -325,6 +329,37 @@ N=30 queries across 6 skincare categories, paired within-subject design.
 | Reflection score | **7.0** ± 0.78 | 6.64 ± 0.84 |
 
 Full report: `docs/testing/2026-05-18-ab-report.md` · Raw data: `scripts/ab_results.jsonl` (60 JSONL records)
+
+### RAG v2 Ablation (Hybrid + Rerank + Semantic Cache + Persona)
+
+N=40 hand-authored gold queries × 5 configs, paired design.
+Pipeline: vector (text2vec-base-chinese) + BM25 (jieba) → RRF fusion → cross-encoder rerank (bge-reranker-base) → persona-aware filter + soft boost → semantic cache (cosine threshold, LRU+TTL).
+
+| Config | Recall@3 | MRR | Faithfulness | Avg sec |
+|---|---|---|---|---|
+| C0 baseline (vector only) | 0.558 | 0.333 | 6.50 | 0.04 |
+| C1 + BM25/RRF             | 0.579 | 0.321 | 6.43 | 0.04 |
+| C2 + cross-encoder rerank | 0.576 | **0.388** | **6.75** | 2.13 |
+| C3 + semantic cache       | 0.576 | 0.388 | 6.65 | 2.26 |
+| C4 + persona-aware        | 0.564 | 0.388 | 6.48 | 2.09 |
+
+**Per-category Recall@3 — where each technique shines:**
+
+| Category | C0 | C2 | Delta | Insight |
+|---|---|---|---|---|
+| ingredient_lookup | 0.486 | **0.587** | +10pp | BM25 wins exact ingredient-name queries |
+| persona_strong    | 0.667 | **0.750** | +8pp  | Persona soft boost reorders relevant products up |
+| direct_need       | 0.333 | 0.333 | 0    | Reranker neutral here; C1 gets +8pp from BM25 |
+| colloquial        | 0.400 | 0.200 | **-20pp** | Cross-encoder mismatched to vague口语化 queries |
+| synonym           | 0.625 | 0.625 | 0    | Vector+rerank both handle synonyms equally |
+
+**Trade-offs:**
+- Cross-encoder is the single biggest lever for ranking quality (+5pp MRR, +0.25 faithfulness) but adds ~50× retrieval latency (2.1s vs 0.04s).
+- BM25 hybrid wins exactly the canonical use case (exact-name ingredient lookup) but slightly hurts cross-category queries.
+- Persona hard-filter (C4) is currently over-restrictive — slight overall recall drop vs C3. Future work: soften to soft constraint when candidate pool runs thin.
+- Colloquial query regression with reranker (-20pp) is a real, honest finding — bge-reranker-base isn't tuned for vague natural-language queries.
+
+Full report: `docs/testing/2026-05-28-rag-v2-report.md` · Raw data: `scripts/rag_eval/results/*.jsonl`
 
 ---
 
