@@ -42,6 +42,7 @@ def _extract_doc_ids(context: str) -> list[str]:
 
 
 async def _run_config(spec, gold_records: list[dict], judge_client, out_path: Path, done_qids: set[str]):
+    from scripts.rag_eval.metrics import judge_relevancy_li
     query_fn = build_query_fn(spec)
 
     for rec in gold_records:
@@ -63,6 +64,7 @@ async def _run_config(spec, gold_records: list[dict], judge_client, out_path: Pa
         forbidden = set(rec.get("must_not_contain", []))
 
         faith = await judge_faithfulness(judge_client, rec["query"], context) if context else None
+        li_relevancy = await judge_relevancy_li(rec["query"], context) if context else None
 
         out = {
             "config": spec.name,
@@ -75,6 +77,9 @@ async def _run_config(spec, gold_records: list[dict], judge_client, out_path: Pa
             "mrr": mrr(retrieved_ids, gold_ids),
             "has_forbidden": has_forbidden(retrieved_ids, forbidden),
             "faithfulness": faith.get("faithfulness") if faith else None,
+            "faithfulness_reason": faith.get("reason") if faith else None,
+            "li_relevancy_pass": li_relevancy.get("pass") if li_relevancy else None,
+            "li_relevancy_feedback": li_relevancy.get("feedback") if li_relevancy else None,
             "elapsed_seconds": elapsed,
             "error": error,
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -82,7 +87,11 @@ async def _run_config(spec, gold_records: list[dict], judge_client, out_path: Pa
 
         with out_path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(out, ensure_ascii=False) + "\n")
-        logger.info("[%s] %s  R@3=%.2f  MRR=%.2f  %.2fs", spec.name, rec["qid"], out["recall_at_3"], out["mrr"], elapsed)
+        logger.info(
+            "[%s] %s  R@3=%.2f  MRR=%.2f  faith=%s  li=%s  %.2fs",
+            spec.name, rec["qid"], out["recall_at_3"], out["mrr"],
+            out["faithfulness"], out["li_relevancy_pass"], elapsed,
+        )
 
 
 async def main_async(args):
