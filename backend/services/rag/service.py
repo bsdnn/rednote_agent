@@ -1,4 +1,4 @@
-"""Public RAG entrypoint with v1/v2 dispatch.
+"""Public RAG entrypoint (v2 pipeline).
 
 `tools_registry.query_product_database` imports from here.
 """
@@ -61,12 +61,8 @@ def _build_v2():
 
 
 async def query_product_database(query: str, persona: UserPersona | None = None) -> str:
-    if settings.RAG_VERSION == "v2":
-        pipeline = _build_v2()
-        return await pipeline.query(query, persona=persona)
-    # v1 fallback — persona is ignored (legacy)
-    from backend.services.rag_service import query_product_database as v1_query
-    return await v1_query(query)
+    pipeline = _build_v2()
+    return await pipeline.query(query, persona=persona)
 
 
 def cache_stats() -> dict:

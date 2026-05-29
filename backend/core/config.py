@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     TRENDING_KEYWORD_LIMIT: int = 10
 
     # RAG v2
-    RAG_VERSION: str = "v1"  # "v1" | "v2"
+    RAG_VERSION: str = "v2"  # "v1" | "v2"
     RAG_HYBRID_TOPK: int = 20  # candidates fed to reranker
     RERANKER_MODEL: str = "BAAI/bge-reranker-base"
     SEMANTIC_CACHE_THRESHOLD: float = 0.92
