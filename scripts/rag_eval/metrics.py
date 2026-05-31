@@ -57,3 +57,52 @@ async def judge_faithfulness(client, query: str, context: str) -> dict | None:
     except Exception as e:
         logger.error("judge failed: %s", e)
         return None
+
+
+# ----------------- LlamaIndex RelevancyEvaluator integration -----------------
+
+_li_evaluator = None
+
+
+def get_li_evaluator():
+    """Singleton LI RelevancyEvaluator backed by DeepSeek.
+
+    RelevancyEvaluator asks "is the response relevant to the query?".
+    For retrieval eval we feed the retrieved-context string as the response,
+    which is the closest LI evaluator semantic to "did retrieval bring back
+    relevant material" for our retrieval-only RAG (we generate text in the
+    agent layer, outside the RAG eval scope).
+    """
+    global _li_evaluator
+    if _li_evaluator is not None:
+        return _li_evaluator
+    from llama_index.core.evaluation import RelevancyEvaluator
+    from llama_index.llms.openai_like import OpenAILike
+    from backend.core.config import settings
+
+    llm = OpenAILike(
+        model="deepseek-chat",
+        api_base="https://api.deepseek.com/v1",
+        api_key=settings.DEEPSEEK_API_KEY,
+        is_chat_model=True,
+    )
+    _li_evaluator = RelevancyEvaluator(llm=llm)
+    return _li_evaluator
+
+
+async def judge_relevancy_li(query: str, context: str) -> dict | None:
+    """Return {pass: bool, feedback: str} or None on failure."""
+    try:
+        evaluator = get_li_evaluator()
+        result = await evaluator.aevaluate(
+            query=query,
+            response=context,
+            contexts=[context],
+        )
+        return {
+            "pass": bool(result.passing) if result.passing is not None else None,
+            "feedback": result.feedback or "",
+        }
+    except Exception as e:
+        logger.error("LI relevancy judge failed: %s", e)
+        return None

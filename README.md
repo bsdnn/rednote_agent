@@ -11,7 +11,7 @@ Give it a skincare query (e.g. *"fade acne scars"*) and the agent autonomously c
 - **Three-phase agent pipeline** — Planning → Tool-using Agent Loop → Self-Reflection. The planning phase produces a structured task plan that guides the agent; reflection scores every draft and triggers rewrites when quality drops below threshold. Best-scored draft tracking ensures the agent never regresses on rewrite.
 - **Plan-and-Execute with parallel tools** — LLM-issued tool calls (RAG search, Tavily web search, trending topics) execute concurrently via `asyncio.gather`, with per-request result caching to avoid redundant API calls
 - **A/B-verified planning** — a 30-query paired experiment confirmed planning raises success rate from 50% to **80%** while cutting total token cost by **40%** (5753 vs 9678) — the upfront planning call more than pays for itself by keeping the agent on track
-- **RAG v2 — eval-driven hybrid pipeline** — BM25 (jieba-tokenized) + dense (text2vec-base-chinese) → RRF fusion → cross-encoder rerank (bge-reranker-base) → persona-aware filter & soft boost → semantic cache (cosine threshold, LRU+TTL). Paired ablation across 5 configs (C0..C4) over 40 hand-authored gold queries with auto-generated report; cross-encoder is the biggest ranking lever (+5pp MRR, +0.25 faithfulness) at 50× retrieval latency cost.
+- **RAG v3 — LlamaIndex pipeline with BGE-M3** — `RetrieverQueryEngine` orchestrating `QueryFusionRetriever` (RRF over `VectorIndexRetriever` with BGE-M3 dense + `BM25Retriever` with jieba) → `SentenceTransformerRerank` (`BAAI/bge-reranker-v2-m3`) → custom `PersonaNodePostprocessor` (`BaseNodePostprocessor` subclass, `ContextVar`-injected persona) → semantic cache (cosine threshold, LRU+TTL). Title auto-prepended to embedding text via `excluded_embed_metadata_keys` (fixes a v2 bug where post/ingredient titles never reached the embedder). Paired ablation across 5 configs (C0..C4) over 40 hand-authored gold queries with **dual-judge eval** (custom 1-10 faithfulness + LlamaIndex `RelevancyEvaluator`) and Cohen κ agreement (0.58-0.71, substantial). BGE-M3 dense alone (C0 R@3=0.665) beats v2's full pipeline (C2 R@3=0.576) — a clean +11pp upgrade.
 - **User persona conditioning** — skin type / age group / preferences / budget shape the copy toward the target reader; persistent copy history via SQLite with parameterized queries
 - **Self-reflection with best-draft fallback** — every draft is scored on virality, tone match, and factual accuracy; drafts scoring below threshold trigger targeted rewrites; the highest-scored draft across all reflection rounds wins
 - **Multi-turn refinement** — iterate on a generated post with follow-up instructions ("make it more professional", "add more hashtags")
@@ -29,7 +29,7 @@ Give it a skincare query (e.g. *"fade acne scars"*) and the agent autonomously c
 | Backend | FastAPI + uvicorn |
 | HTTP client | httpx (async) + tenacity retries |
 | Streaming | sse-starlette |
-| Vector search | FAISS (cosine) + BM25 (rank_bm25 + jieba) + RRF + bge-reranker-base |
+| Vector search | LlamaIndex (`RetrieverQueryEngine`, `QueryFusionRetriever`) + BGE-M3 + `bge-reranker-v2-m3` + jieba BM25 + FAISS |
 | Web search | Tavily API (replaced DuckDuckGo after diagnosing tool-reliability failures) |
 | Web fetching | Tavily extract API with 2000-char truncation |
 | Config | pydantic-settings |
@@ -132,11 +132,14 @@ rednote/
 │   │   └── prompts.py           # SYSTEM_PROMPT + build_user_message()
 │   ├── services/
 │   │   ├── deepseek_client.py   # global httpx singleton + tenacity retry
-│   │   ├── rag/                 # RAG v2 — hybrid + rerank + persona + semantic cache
-│   │   │   ├── service.py       # public entrypoint, lazily builds pipeline
-│   │   │   ├── pipeline.py      # RAGv2Pipeline orchestration
-│   │   │   ├── corpus/          # loader + chunker (products + ingredients + posts)
-│   │   │   └── retrievers/      # vector, BM25, RRF, reranker, persona, cache
+│   │   ├── rag/                 # RAG v3 — LlamaIndex + BGE-M3 + bge-reranker-v2-m3
+│   │   │   ├── service.py       # public entrypoint (ContextVar + cache wrap)
+│   │   │   ├── engine.py        # LlamaIndex RetrieverQueryEngine factory
+│   │   │   ├── _context.py      # ContextVar for persona injection
+│   │   │   ├── persona_postprocessor.py  # BaseNodePostprocessor subclass
+│   │   │   ├── persona_rules.py # pure functions: budget tier + skin-type checks
+│   │   │   ├── corpus/          # loader + schema (products + ingredients + posts)
+│   │   │   └── cache/           # semantic_cache.py (LRU + TTL)
 │   │   ├── search_service.py    # Tavily web search + trending topics + page extraction
 │   │   └── tools_registry.py    # AVAILABLE_TOOLS + TOOLS_DEFINITION
 │   ├── models/
@@ -360,6 +363,40 @@ Pipeline: vector (text2vec-base-chinese) + BM25 (jieba) → RRF fusion → cross
 - Colloquial query regression with reranker (-20pp) is a real, honest finding — bge-reranker-base isn't tuned for vague natural-language queries.
 
 Full report: `docs/testing/2026-05-28-rag-v2-report.md` · Raw data: `scripts/rag_eval/results/*.jsonl`
+
+### RAG v3 Ablation (LlamaIndex + BGE-M3, dual-judge)
+
+Same 40-query gold set, paired design over 5 configs on the v3 pipeline. Custom 1-10 faithfulness + LlamaIndex `RelevancyEvaluator` (pass/fail) judged each retrieved context independently. Cohen κ (0.58-0.71 across configs) shows substantial dual-judge agreement.
+
+| Config | Recall@3 | MRR | Faithfulness | Avg sec |
+|---|---|---|---|---|
+| C0 BGE-M3 dense only      | **0.665** | **0.475** | 7.08 | 0.10 |
+| C1 + BM25/RRF             | 0.595 | 0.362 | 6.38 | 0.08 |
+| C2 + cross-encoder rerank | 0.660 | 0.467 | 6.90 | 9.69 |
+| C3 + semantic cache       | 0.660 | 0.467 | 7.10 | 10.20 |
+| C4 + persona-aware (full) | 0.648 | 0.442 | 6.93 | 10.63 |
+
+**v2 → v3 comparison (matching configs):**
+
+| Metric | v2 C0 (text2vec) | v3 C0 (BGE-M3) | v2 C2 (rerank-base) | v3 C2 (rerank-v2-m3) |
+|---|---|---|---|---|
+| Recall@3 | 0.558 | **0.665** (+11pp) | 0.576 | **0.660** (+8pp) |
+| MRR | 0.333 | **0.475** (+14pp) | 0.388 | **0.467** (+8pp) |
+| Faithfulness (1-10) | 6.50 | **7.08** | 6.75 | 6.90 |
+
+**Key wins:**
+- BGE-M3 dense alone (C0=0.665) **outperforms v2's full pipeline** (C2=0.576). Modern Chinese SOTA replaces 2022-era text2vec.
+- Title now embedded via LlamaIndex's `excluded_embed_metadata_keys` — fixes a v2 bug where post/ingredient titles never reached the embedder. Improves recall on queries where the title carries the topic keyword (e.g. *"氨基酸洁面适合什么肤质"*).
+- Cross-encoder upgrade (bge-reranker-base → bge-reranker-v2-m3) recovers most of the BM25-induced regression: C2 0.660 vs C0 0.665.
+- Dual-judge methodology (custom 1-10 + LI `RelevancyEvaluator`) with Cohen κ adds an independent validation signal — agreement is substantial (κ ≥ 0.58 for all configs), which strengthens confidence in the relative rankings.
+- LangChain-tier framework keywords in the codebase: `RetrieverQueryEngine`, `QueryFusionRetriever`, `SentenceTransformerRerank`, `RelevancyEvaluator`, `BaseNodePostprocessor`.
+
+**Honest caveats:**
+- The v3 spec named `FaithfulnessEvaluator` for the second judge; in implementation we use `RelevancyEvaluator` because we run `response_mode="no_text"` — `FaithfulnessEvaluator` asks "is response faithful to context" which is degenerate when response equals the retrieved context. `RelevancyEvaluator` ("is context relevant to query") is semantically the right tool for retrieval-only RAG.
+- **BM25 fusion is a net negative on this corpus** (C1 R@3=0.595 < C0 0.665, ingredient_lookup −23pp). Root cause: ~47% of posts mention 3+ ingredient names each (LLM-generated comparison/guide content), and ingredient docs are written in an encyclopedic prose style — both classes pile up BM25 term-frequency without semantic specificity, dominating the RRF top-K. Attempted fix (BM25 indexing only product+ingredient nodes, skipping posts) **made it worse** because the dominance shifted to a few "encyclopedic" ingredient docs (`ing_petrolatum`, `ing_hyaluronic_acid`); the fix was reverted. The honest finding: BGE-M3 dense alone is so strong on this corpus that BM25 contribution is net-negative. Future work: re-index BM25 over title-only fields, or switch to BGE-M3's native sparse mode.
+- Persona hard-filter regression persists from v2 (C3 → C4 flat or slightly negative in some categories). Future work: soften when candidate pool runs thin.
+
+Full report: `docs/testing/2026-05-30-rag-v3-report.md` · Raw data: `scripts/rag_eval/results/2026-05-30_C*.jsonl`
 
 ---
 
